@@ -1,20 +1,19 @@
-# ==============================================================================
+﻿# ==============================================================================
 # nodesCatchNext 一键打包发行版脚本
 # ==============================================================================
 param (
-    [string]$Version = "v4.0.0",
     [string]$DependencySource = "C:\Users\qiuxtao\Downloads\nodesCatchNext-v4.0"
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = $PSScriptRoot
 $distRoot = Join-Path $repoRoot "dist"
-$pkgName = "nodesCatchNext-$Version-windows-x64"
+$pkgName = "nodesCatchNext-windows-x64"
 $pkgDir = Join-Path $distRoot $pkgName
 $zipPath = Join-Path $distRoot "$pkgName.zip"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " 开始构建 nodesCatchNext 发行版 [$Version]" -ForegroundColor Cyan
+Write-Host " 开始构建 nodesCatchNext 发行版" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. 编译最新的 Release 版本

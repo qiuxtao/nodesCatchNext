@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -3526,7 +3526,7 @@ public class MainForm : Form
 		base.Margin = new System.Windows.Forms.Padding(5);
 		this.MinimumSize = new System.Drawing.Size(1760, 1330);
 		base.Name = "MainForm";
-		this.Text = "nodesCatchNext - V4.0.0";
+		this.Text = "nodesCatchNext";
 		base.FormClosing += new System.Windows.Forms.FormClosingEventHandler(MainForm_FormClosing);
 		base.Load += new System.EventHandler(MainForm_Load);
 		base.ResizeEnd += new System.EventHandler(MainForm_ResizeEnd);
