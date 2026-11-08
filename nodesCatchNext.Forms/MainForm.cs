@@ -92,6 +92,7 @@ public class MainForm : Form
 
 	private ContextMenuStrip cmsLv;
 
+	private ToolStripMenuItem menuTcpingServer;
 	private ToolStripMenuItem menuRealPingServer;
 
 	private ToolStripMenuItem menuDownLoadServer;
@@ -146,6 +147,7 @@ public class MainForm : Form
 
 	private Label label4;
 
+	private Button btnTestTcping;
 	private Button btnTestDelay;
 
 	private Label lblSpeedUrl;
@@ -162,6 +164,7 @@ public class MainForm : Form
 
 	private Button btnTestSpeed;
 
+	private bool isTestingTcping = false;
 	private bool isTestingDelay = false;
 
 	private bool isTestingSpeed = false;
@@ -1083,6 +1086,77 @@ public class MainForm : Form
 	{
 	}
 
+	private void menuTcpingServer_Click(object sender, EventArgs e)
+	{
+		StartTcpingTest(onlySelected: true);
+	}
+
+	private void btnTestTcping_Click(object sender, EventArgs e)
+	{
+		StartTcpingTest(onlySelected: false);
+	}
+
+	private void StartTcpingTest(bool onlySelected)
+	{
+		if (isTestingTcping)
+		{
+			cts?.Cancel();
+			return;
+		}
+		if (isTestingDelay)
+		{
+			UI.Show("当前正在进行真实延迟测试，请先停止后再测试TCP延迟", this);
+			return;
+		}
+		if (isTestingSpeed)
+		{
+			UI.Show("当前正在进行下载测试，请先停止后再测试TCP延迟", this);
+			return;
+		}
+		if (!PrepareTargetNodes(onlySelected))
+		{
+			return;
+		}
+		if (!DetectTunModeAndWarn())
+		{
+			AppendText(notify: false, "已取消TCP延迟测试（检测到TUN模式）");
+			return;
+		}
+
+		isTestingTcping = true;
+		btnTestTcping.Text = "停止测试";
+		btnTestDelay.Enabled = false;
+		btnTestSpeed.Enabled = false;
+		cts = new CancellationTokenSource();
+
+		foreach (int idx in lvSelecteds)
+		{
+			SetDelayResult(idx, "测试中...", "测试中...");
+		}
+
+		AppendText(notify: false, $"开始测试TCP延迟（共 {lvSelecteds.Count} 个节点，全并发，每节点测试 {config.PingCount} 次）...");
+		CancellationToken token = cts.Token;
+		SpeedtestHandler handler = new SpeedtestHandler(config, mihomoHandler, new List<int>(lvSelecteds), UpdateDelayHandler, null, delegate
+		{
+			if (base.IsHandleCreated)
+			{
+				BeginInvoke((Action)delegate
+				{
+					isTestingTcping = false;
+					btnTestTcping.Text = "测试TCP延迟";
+					btnTestDelay.Enabled = true;
+					btnTestSpeed.Enabled = true;
+					SortListView();
+					ConfigHandler.ToJsonFile(config);
+				});
+			}
+		});
+		Task.Run(delegate
+		{
+			handler.RunTcpingTest(token);
+		});
+	}
+
 	private void menuRealPingServer_Click(object sender, EventArgs e)
 	{
 		StartDelayTest(onlySelected: true);
@@ -1138,9 +1212,14 @@ public class MainForm : Form
 			cts?.Cancel();
 			return;
 		}
+		if (isTestingTcping)
+		{
+			UI.Show("当前正在进行TCP延迟测试，请先停止后再测试真实延迟", this);
+			return;
+		}
 		if (isTestingSpeed)
 		{
-			UI.Show("当前正在进行下载测试，请先停止后再测试延迟", this);
+			UI.Show("当前正在进行下载测试，请先停止后再测试真实延迟", this);
 			return;
 		}
 		if (!PrepareTargetNodes(onlySelected))
@@ -1149,7 +1228,7 @@ public class MainForm : Form
 		}
 		if (!DetectTunModeAndWarn())
 		{
-			AppendText(notify: false, "已取消延迟测试（检测到TUN模式）");
+			AppendText(notify: false, "已取消真实延迟测试（检测到TUN模式）");
 			return;
 		}
 		try
@@ -1164,6 +1243,7 @@ public class MainForm : Form
 
 		isTestingDelay = true;
 		btnTestDelay.Text = "停止测试";
+		btnTestTcping.Enabled = false;
 		btnTestSpeed.Enabled = false;
 		cts = new CancellationTokenSource();
 
@@ -1172,7 +1252,7 @@ public class MainForm : Form
 			SetDelayResult(idx, "测试中...", "测试中...");
 		}
 
-		AppendText(notify: false, $"开始延迟测试（共 {lvSelecteds.Count} 个节点，无线程限制全并发，每节点测试 {config.PingCount} 次）...");
+		AppendText(notify: false, $"开始真实延迟测试（共 {lvSelecteds.Count} 个节点，无线程限制全并发，每节点测试 {config.PingCount} 次）...");
 		CancellationToken token = cts.Token;
 		SpeedtestHandler handler = new SpeedtestHandler(config, mihomoHandler, new List<int>(lvSelecteds), UpdateDelayHandler, null, delegate
 		{
@@ -1181,7 +1261,8 @@ public class MainForm : Form
 				BeginInvoke((Action)delegate
 				{
 					isTestingDelay = false;
-					btnTestDelay.Text = "测试延迟";
+					btnTestDelay.Text = "测试真实延迟";
+					btnTestTcping.Enabled = true;
 					btnTestSpeed.Enabled = true;
 					SortListView();
 					ConfigHandler.ToJsonFile(config);
@@ -1201,9 +1282,14 @@ public class MainForm : Form
 			cts?.Cancel();
 			return;
 		}
+		if (isTestingTcping)
+		{
+			UI.Show("当前正在进行TCP延迟测试，请先停止后再测试下载", this);
+			return;
+		}
 		if (isTestingDelay)
 		{
-			UI.Show("当前正在进行延迟测试，请先停止后再测试下载", this);
+			UI.Show("当前正在进行真实延迟测试，请先停止后再测试下载", this);
 			return;
 		}
 		if (!PrepareTargetNodes(onlySelected))
@@ -1227,6 +1313,7 @@ public class MainForm : Form
 
 		isTestingSpeed = true;
 		btnTestSpeed.Text = "停止测试";
+		btnTestTcping.Enabled = false;
 		btnTestDelay.Enabled = false;
 		cts = new CancellationTokenSource();
 
@@ -1245,6 +1332,7 @@ public class MainForm : Form
 				{
 					isTestingSpeed = false;
 					btnTestSpeed.Text = "测试下载";
+					btnTestTcping.Enabled = true;
 					btnTestDelay.Enabled = true;
 					SortListView();
 					ConfigHandler.ToJsonFile(config);
@@ -2175,6 +2263,9 @@ public class MainForm : Form
 				break;
 			case Keys.R:
 				menuRealPingServer_Click(null, null);
+				break;
+			case Keys.P:
+				menuTcpingServer_Click(null, null);
 				break;
 			}
 		}
@@ -3113,6 +3204,7 @@ public class MainForm : Form
 		this.splitContainer1 = new System.Windows.Forms.SplitContainer();
 		this.lvServers = new nodesCatchNext.Base.ListViewFlickerFree();
 		this.cmsLv = new System.Windows.Forms.ContextMenuStrip(this.components);
+		this.menuTcpingServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuRealPingServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuDownLoadServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
@@ -3140,6 +3232,7 @@ public class MainForm : Form
 		this.tbPingCount = new System.Windows.Forms.TextBox();
 		this.label4 = new System.Windows.Forms.Label();
 		this.tbTimeout = new System.Windows.Forms.TextBox();
+		this.btnTestTcping = new System.Windows.Forms.Button();
 		this.btnTestDelay = new System.Windows.Forms.Button();
 		this.lblSpeedUrl = new System.Windows.Forms.Label();
 		this.tbSpeedUrl = new System.Windows.Forms.TextBox();
@@ -3211,17 +3304,21 @@ public class MainForm : Form
 		this.lvServers.DoubleClick += new System.EventHandler(lvServers_DoubleClick);
 		this.lvServers.KeyDown += new System.Windows.Forms.KeyEventHandler(lvServers_KeyDown);
 		this.cmsLv.ImageScalingSize = new System.Drawing.Size(20, 20);
-		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[15]
+		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[16]
 		{
-			this.menuRealPingServer, this.menuDownLoadServer, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
+			this.menuTcpingServer, this.menuRealPingServer, this.menuDownLoadServer, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
 			this.menuMoveToGroup, this.menuRemoveServer, this.menuRemoveDuplicateServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.toolStripSeparator6,
 			this.menuExport2Base64, this.menuExport2Clash
 		});
 		this.cmsLv.Name = "cmsLv";
 		this.cmsLv.Size = new System.Drawing.Size(285, 340);
+		this.menuTcpingServer.Name = "menuTcpingServer";
+		this.menuTcpingServer.Size = new System.Drawing.Size(284, 24);
+		this.menuTcpingServer.Text = "测试TCP延迟(Ctrl+P)";
+		this.menuTcpingServer.Click += new System.EventHandler(menuTcpingServer_Click);
 		this.menuRealPingServer.Name = "menuRealPingServer";
 		this.menuRealPingServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRealPingServer.Text = "测试延迟(Ctrl+R)";
+		this.menuRealPingServer.Text = "测试真实延迟(Ctrl+R)";
 		this.menuRealPingServer.Click += new System.EventHandler(menuRealPingServer_Click);
 		this.menuDownLoadServer.Name = "menuDownLoadServer";
 		this.menuDownLoadServer.Size = new System.Drawing.Size(284, 24);
@@ -3324,6 +3421,7 @@ public class MainForm : Form
 		this.groupBox5.Controls.Add(this.tbPingCount);
 		this.groupBox5.Controls.Add(this.label4);
 		this.groupBox5.Controls.Add(this.tbTimeout);
+		this.groupBox5.Controls.Add(this.btnTestTcping);
 		this.groupBox5.Controls.Add(this.btnTestDelay);
 		this.groupBox5.Controls.Add(this.lblSpeedUrl);
 		this.groupBox5.Controls.Add(this.tbSpeedUrl);
@@ -3354,16 +3452,16 @@ public class MainForm : Form
 		this.lblDelayUrl.Text = "延迟URL：";
 		this.tbDelayUrl.Location = new System.Drawing.Point(104, 28);
 		this.tbDelayUrl.Name = "tbDelayUrl";
-		this.tbDelayUrl.Size = new System.Drawing.Size(420, 25);
+		this.tbDelayUrl.Size = new System.Drawing.Size(320, 25);
 		this.tbDelayUrl.TabIndex = 2;
 		this.tbDelayUrl.TextChanged += new System.EventHandler(tbDelayUrl_TextChanged);
 		this.lblPingCount.AutoSize = true;
-		this.lblPingCount.Location = new System.Drawing.Point(540, 32);
+		this.lblPingCount.Location = new System.Drawing.Point(440, 32);
 		this.lblPingCount.Name = "lblPingCount";
 		this.lblPingCount.Size = new System.Drawing.Size(82, 15);
 		this.lblPingCount.TabIndex = 3;
 		this.lblPingCount.Text = "测试次数：";
-		this.tbPingCount.Location = new System.Drawing.Point(625, 28);
+		this.tbPingCount.Location = new System.Drawing.Point(525, 28);
 		this.tbPingCount.Name = "tbPingCount";
 		this.tbPingCount.Size = new System.Drawing.Size(55, 25);
 		this.tbPingCount.TabIndex = 4;
@@ -3371,23 +3469,30 @@ public class MainForm : Form
 		this.tbPingCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
 		this.tbPingCount.TextChanged += new System.EventHandler(tbPingCount_TextChanged);
 		this.label4.AutoSize = true;
-		this.label4.Location = new System.Drawing.Point(696, 32);
+		this.label4.Location = new System.Drawing.Point(596, 32);
 		this.label4.Name = "label4";
 		this.label4.Size = new System.Drawing.Size(113, 15);
 		this.label4.TabIndex = 5;
 		this.label4.Text = "延迟超时(秒)：";
-		this.tbTimeout.Location = new System.Drawing.Point(810, 28);
+		this.tbTimeout.Location = new System.Drawing.Point(710, 28);
 		this.tbTimeout.Name = "tbTimeout";
 		this.tbTimeout.Size = new System.Drawing.Size(55, 25);
 		this.tbTimeout.TabIndex = 6;
 		this.tbTimeout.Text = "5";
 		this.tbTimeout.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
 		this.tbTimeout.TextChanged += new System.EventHandler(tbTimeout_TextChanged);
-		this.btnTestDelay.Location = new System.Drawing.Point(885, 20);
+		this.btnTestTcping.Location = new System.Drawing.Point(780, 20);
+		this.btnTestTcping.Name = "btnTestTcping";
+		this.btnTestTcping.Size = new System.Drawing.Size(120, 38);
+		this.btnTestTcping.TabIndex = 7;
+		this.btnTestTcping.Text = "测试TCP延迟";
+		this.btnTestTcping.UseVisualStyleBackColor = true;
+		this.btnTestTcping.Click += new System.EventHandler(btnTestTcping_Click);
+		this.btnTestDelay.Location = new System.Drawing.Point(910, 20);
 		this.btnTestDelay.Name = "btnTestDelay";
-		this.btnTestDelay.Size = new System.Drawing.Size(130, 38);
-		this.btnTestDelay.TabIndex = 7;
-		this.btnTestDelay.Text = "测试延迟";
+		this.btnTestDelay.Size = new System.Drawing.Size(120, 38);
+		this.btnTestDelay.TabIndex = 8;
+		this.btnTestDelay.Text = "测试真实延迟";
 		this.btnTestDelay.UseVisualStyleBackColor = true;
 		this.btnTestDelay.Click += new System.EventHandler(btnTestDelay_Click);
 		// 下载测试配置行（第二行 Y=82）
@@ -3395,42 +3500,42 @@ public class MainForm : Form
 		this.lblSpeedUrl.Location = new System.Drawing.Point(24, 86);
 		this.lblSpeedUrl.Name = "lblSpeedUrl";
 		this.lblSpeedUrl.Size = new System.Drawing.Size(76, 15);
-		this.lblSpeedUrl.TabIndex = 8;
+		this.lblSpeedUrl.TabIndex = 9;
 		this.lblSpeedUrl.Text = "下载URL：";
 		this.tbSpeedUrl.Location = new System.Drawing.Point(104, 82);
 		this.tbSpeedUrl.Name = "tbSpeedUrl";
-		this.tbSpeedUrl.Size = new System.Drawing.Size(420, 25);
-		this.tbSpeedUrl.TabIndex = 9;
+		this.tbSpeedUrl.Size = new System.Drawing.Size(320, 25);
+		this.tbSpeedUrl.TabIndex = 10;
 		this.tbSpeedUrl.TextChanged += new System.EventHandler(tbSpeedUrl_TextChanged);
 		this.lblDownloadThread.AutoSize = true;
-		this.lblDownloadThread.Location = new System.Drawing.Point(540, 86);
+		this.lblDownloadThread.Location = new System.Drawing.Point(440, 86);
 		this.lblDownloadThread.Name = "lblDownloadThread";
 		this.lblDownloadThread.Size = new System.Drawing.Size(82, 15);
-		this.lblDownloadThread.TabIndex = 10;
+		this.lblDownloadThread.TabIndex = 11;
 		this.lblDownloadThread.Text = "测试线程：";
-		this.tbDownloadThread.Location = new System.Drawing.Point(625, 82);
+		this.tbDownloadThread.Location = new System.Drawing.Point(525, 82);
 		this.tbDownloadThread.Name = "tbDownloadThread";
 		this.tbDownloadThread.Size = new System.Drawing.Size(55, 25);
-		this.tbDownloadThread.TabIndex = 11;
+		this.tbDownloadThread.TabIndex = 12;
 		this.tbDownloadThread.Text = "4";
 		this.tbDownloadThread.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
 		this.tbDownloadThread.TextChanged += new System.EventHandler(tbDownloadThread_TextChanged);
 		this.lblDownloadMaxTime.AutoSize = true;
-		this.lblDownloadMaxTime.Location = new System.Drawing.Point(696, 86);
+		this.lblDownloadMaxTime.Location = new System.Drawing.Point(596, 86);
 		this.lblDownloadMaxTime.Name = "lblDownloadMaxTime";
 		this.lblDownloadMaxTime.Size = new System.Drawing.Size(113, 15);
-		this.lblDownloadMaxTime.TabIndex = 12;
+		this.lblDownloadMaxTime.TabIndex = 13;
 		this.lblDownloadMaxTime.Text = "最大时间(秒)：";
-		this.tbDownloadMaxTime.Location = new System.Drawing.Point(810, 82);
+		this.tbDownloadMaxTime.Location = new System.Drawing.Point(710, 82);
 		this.tbDownloadMaxTime.Name = "tbDownloadMaxTime";
 		this.tbDownloadMaxTime.Size = new System.Drawing.Size(55, 25);
-		this.tbDownloadMaxTime.TabIndex = 13;
+		this.tbDownloadMaxTime.TabIndex = 14;
 		this.tbDownloadMaxTime.Text = "10";
 		this.tbDownloadMaxTime.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
 		this.tbDownloadMaxTime.TextChanged += new System.EventHandler(tbDownloadMaxTime_TextChanged);
-		this.btnTestSpeed.Location = new System.Drawing.Point(885, 74);
+		this.btnTestSpeed.Location = new System.Drawing.Point(780, 74);
 		this.btnTestSpeed.Name = "btnTestSpeed";
-		this.btnTestSpeed.Size = new System.Drawing.Size(130, 38);
+		this.btnTestSpeed.Size = new System.Drawing.Size(250, 38);
 		this.btnTestSpeed.TabIndex = 14;
 		this.btnTestSpeed.Text = "测试下载";
 		this.btnTestSpeed.UseVisualStyleBackColor = true;

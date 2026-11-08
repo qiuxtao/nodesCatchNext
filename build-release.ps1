@@ -2,10 +2,18 @@
 # nodesCatchNext 一键打包发行版脚本
 # ==============================================================================
 param (
-    [string]$DependencySource = "C:\Users\qiuxtao\Downloads\nodesCatchNext-v4.0"
+    [string]$DependencySource = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($DependencySource)) {
+    if (Test-Path "C:\Applications\nodesCatchNext-windows-x64\mihomo-nodes.exe") {
+        $DependencySource = "C:\Applications\nodesCatchNext-windows-x64"
+    } elseif (Test-Path "C:\Users\qiuxtao\Downloads\nodesCatchNext-v4.0\mihomo-nodes.exe") {
+        $DependencySource = "C:\Users\qiuxtao\Downloads\nodesCatchNext-v4.0"
+    }
+}
 $repoRoot = $PSScriptRoot
 $distRoot = Join-Path $repoRoot "dist"
 $pkgName = "nodesCatchNext-windows-x64"

@@ -16,7 +16,20 @@ namespace nodesCatchNext;
 
 internal class Utils
 {
-	private static readonly string[] TunKeywords = new string[6] { "wintun", "tun", "tap", "wireguard", "clash", "warp" };
+	private static readonly string[] TunKeywords = new string[]
+	{
+		"wintun",
+		"tun",
+		"tap",
+		"wireguard",
+		"clash",
+		"warp",
+		"meta",
+		"sing-box",
+		"singbox",
+		"neko",
+		"tailscale"
+	};
 
 	// Windows 内置隧道适配器排除列表（这些不是代理 TUN）
 	private static readonly string[] SystemTunnelExclusions = new string[]
