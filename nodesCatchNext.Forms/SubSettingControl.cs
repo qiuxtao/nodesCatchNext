@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using nodesCatchNext.Base;
+using nodesCatchNext.Handler;
 using nodesCatchNext.Mode;
 
 namespace nodesCatchNext.Forms;
@@ -24,6 +25,8 @@ public class SubSettingControl : UserControl
 	private Label label1;
 
 	private Button btnDelete;
+
+	private Button btnUpdate;
 
 	public SubItem subItem { get; set; }
 
@@ -66,6 +69,45 @@ public class SubSettingControl : UserControl
 		MainForm.Instance?.InitSubscriptionTabs();
 	}
 
+	private void btnUpdate_Click(object sender, EventArgs e)
+	{
+		EndBindingSub();
+		if (subItem == null || string.IsNullOrWhiteSpace(subItem.url) || subItem.url.Trim().Equals("url", StringComparison.OrdinalIgnoreCase))
+		{
+			MessageBox.Show("请先输入有效的订阅网址", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			return;
+		}
+		if (string.IsNullOrEmpty(subItem.id))
+		{
+			subItem.id = Utils.GetGUID();
+		}
+		ConfigHandler.SaveSubItem(ref MainForm.config);
+		ConfigHandler.ToJsonFile(MainForm.config);
+		MainForm.Instance?.InitSubscriptionTabs(restoreSelection: true);
+
+		btnUpdate.Enabled = false;
+		btnUpdate.Text = "更新中...";
+		MainForm.Instance?.UpdateSingleSubscription(subItem, delegate
+		{
+			if (!base.IsDisposed && btnUpdate != null && !btnUpdate.IsDisposed)
+			{
+				if (base.InvokeRequired)
+				{
+					BeginInvoke((Action)delegate
+					{
+						btnUpdate.Enabled = true;
+						btnUpdate.Text = "导入/更新";
+					});
+				}
+				else
+				{
+					btnUpdate.Enabled = true;
+					btnUpdate.Text = "导入/更新";
+				}
+			}
+		});
+	}
+
 	private void btnDelete_Click(object sender, EventArgs e)
 	{
 		if (subItem != null && MainForm.config?.subItem != null)
@@ -92,6 +134,7 @@ public class SubSettingControl : UserControl
 	private void InitializeComponent()
 	{
 		this.grbMain = new System.Windows.Forms.GroupBox();
+		this.btnUpdate = new System.Windows.Forms.Button();
 		this.btnDelete = new System.Windows.Forms.Button();
 		this.chkEnabled = new System.Windows.Forms.CheckBox();
 		this.txtUrl = new System.Windows.Forms.TextBox();
@@ -100,6 +143,7 @@ public class SubSettingControl : UserControl
 		this.label1 = new System.Windows.Forms.Label();
 		this.grbMain.SuspendLayout();
 		base.SuspendLayout();
+		this.grbMain.Controls.Add(this.btnUpdate);
 		this.grbMain.Controls.Add(this.btnDelete);
 		this.grbMain.Controls.Add(this.chkEnabled);
 		this.grbMain.Controls.Add(this.txtUrl);
@@ -111,13 +155,21 @@ public class SubSettingControl : UserControl
 		this.grbMain.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
 		this.grbMain.Name = "grbMain";
 		this.grbMain.Padding = new System.Windows.Forms.Padding(2, 2, 2, 2);
-		this.grbMain.Size = new System.Drawing.Size(540, 98);
+		this.grbMain.Size = new System.Drawing.Size(580, 98);
 		this.grbMain.TabIndex = 0;
 		this.grbMain.TabStop = false;
-		this.btnDelete.Location = new System.Drawing.Point(390, 58);
+		this.btnUpdate.Location = new System.Drawing.Point(396, 56);
+		this.btnUpdate.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+		this.btnUpdate.Name = "btnUpdate";
+		this.btnUpdate.Size = new System.Drawing.Size(75, 24);
+		this.btnUpdate.TabIndex = 27;
+		this.btnUpdate.Text = "导入/更新";
+		this.btnUpdate.UseVisualStyleBackColor = true;
+		this.btnUpdate.Click += new System.EventHandler(btnUpdate_Click);
+		this.btnDelete.Location = new System.Drawing.Point(477, 56);
 		this.btnDelete.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
 		this.btnDelete.Name = "btnDelete";
-		this.btnDelete.Size = new System.Drawing.Size(68, 20);
+		this.btnDelete.Size = new System.Drawing.Size(75, 24);
 		this.btnDelete.TabIndex = 28;
 		this.btnDelete.Text = "删除订阅";
 		this.btnDelete.UseVisualStyleBackColor = true;
@@ -162,7 +214,7 @@ public class SubSettingControl : UserControl
 		base.Controls.Add(this.grbMain);
 		base.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
 		base.Name = "SubSettingControl";
-		base.Size = new System.Drawing.Size(540, 98);
+		base.Size = new System.Drawing.Size(580, 98);
 		base.Load += new System.EventHandler(SubSettingControl_Load);
 		this.grbMain.ResumeLayout(false);
 		this.grbMain.PerformLayout();

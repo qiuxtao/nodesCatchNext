@@ -33,6 +33,10 @@ public class VmessItem
 
 	public int configType { get; set; }
 
+	public string minDelay { get; set; }
+
+	public string avgDelay { get; set; }
+
 	public string httpsDelay { get; set; }
 
 	public string testResult { get; set; }
@@ -71,8 +75,11 @@ public class VmessItem
 		streamSecurity = string.Empty;
 		allowInsecure = string.Empty;
 		configType = 1;
+		minDelay = string.Empty;
+		avgDelay = string.Empty;
 		httpsDelay = string.Empty;
 		testResult = string.Empty;
+		MaxSpeed = string.Empty;
 		lastTestTime = string.Empty;
 		subid = string.Empty;
 		flow = string.Empty;

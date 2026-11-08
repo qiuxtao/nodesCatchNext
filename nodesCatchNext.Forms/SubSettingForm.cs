@@ -88,7 +88,24 @@ public class SubSettingForm : Form
 	private void btnSave_Click(object sender, EventArgs e)
 	{
 		ConfigHandler.SaveSubItem(ref MainForm.config);
+		ConfigHandler.ToJsonFile(MainForm.config);
 		base.DialogResult = DialogResult.Cancel;
+	}
+
+	private void SubSettingForm_FormClosing(object sender, FormClosingEventArgs e)
+	{
+		for (int num = MainForm.config.subItem.Count - 1; num >= 0; num--)
+		{
+			SubItem subItem = MainForm.config.subItem[num];
+			if (Utils.IsNullOrEmpty(subItem.remarks) && Utils.IsNullOrEmpty(subItem.url))
+			{
+				MainForm.config.subItem.RemoveAt(num);
+			}
+		}
+		ConfigHandler.SaveSubItem(ref MainForm.config);
+		MainForm.Instance?.InitSubscriptionTabs();
+		MainForm.Instance?.RefreshServersView();
+		ConfigHandler.ToJsonFile(MainForm.config);
 	}
 
 	private void AddSub()
@@ -177,7 +194,7 @@ public class SubSettingForm : Form
 		this.btnSave.Name = "btnSave";
 		this.btnSave.Size = new System.Drawing.Size(121, 30);
 		this.btnSave.TabIndex = 1;
-		this.btnSave.Text = "保存并关闭";
+		this.btnSave.Text = "关闭";
 		this.btnSave.UseVisualStyleBackColor = true;
 		this.btnSave.Click += new System.EventHandler(btnSave_Click);
 		this.btnAdd.Location = new System.Drawing.Point(55, 18);
@@ -226,6 +243,7 @@ public class SubSettingForm : Form
 		base.Name = "SubSettingForm";
 		base.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
 		this.Text = "订阅列表";
+		base.FormClosing += new System.Windows.Forms.FormClosingEventHandler(SubSettingForm_FormClosing);
 		base.Load += new System.EventHandler(SubSettingForm_Load);
 		this.panel1.ResumeLayout(false);
 		base.ResumeLayout(false);

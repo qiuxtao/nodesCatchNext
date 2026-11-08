@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using nodesCatchNext.Base;
 
@@ -19,9 +19,17 @@ public class Config
 
 	public bool defAllowInsecure { get; set; } = true;
 
+	public string speedPingTestUrl { get; set; }
+
+	public string PingCount { get; set; }
+
+	public string Timeout { get; set; }
+
 	public string speedTestUrl { get; set; }
 
-	public string speedPingTestUrl { get; set; }
+	public string DownloadThread { get; set; }
+
+	public string DownloadMaxTime { get; set; }
 
 	public List<VmessItem> vmess { get; set; }
 
@@ -29,67 +37,9 @@ public class Config
 
 	public UIItem uiItem { get; set; }
 
-	public string Timeout { get; set; }
-
-	public string LowSpeed { get; set; }
-
-	public string PingNum { get; set; }
-
-	public string ClashPort { get; set; }
-
-	public bool pingAble { get; set; } = true;
-
-	public bool speedAble { get; set; } = true;
-
-	public bool fastMode { get; set; }
-
-	public bool autoSortEnabled { get; set; }
-
-	public int autoSortColumn { get; set; }
-
-	public int autoSortOrder { get; set; }
-
-	public bool strictExclusionMode { get; set; }
-
 	public string keywordFilter { get; set; }
 
 	public bool keywordFilterEnabled { get; set; } = true;
-
-	public string FMSecond { get; set; }
-
-	public string FMave { get; set; }
-
-	public string FMmax { get; set; }
-
-	public string Thread { get; set; }
-
-	public string DownloadThread { get; set; }
-
-	public int ThreadNum { get; set; }
-
-	public int DownloadThreadNum { get; set; }
-
-	public bool autoSaveAfterTest { get; set; }
-
-	public bool exitConfirmEnabled { get; set; }
-
-	public bool saveConfigOnExit { get; set; }
-
-	public bool saveWindowPosition { get; set; }
-
-	public bool tunWarningEnabled { get; set; } = true;
-
-	public bool autoDedupEnabled { get; set; } = true;
-
-	public bool allowEditServer { get; set; }
-
-	public bool autoRemoveNoResultServer { get; set; }
-
-	public bool recordTestTime { get; set; } = true;
-
-	public bool autoRemoveHttpsDelayFail { get; set; }
-
-	public int subUpdateMode { get; set; }
 
 	public int GetLocalPort(string protocol = "w")
 	{

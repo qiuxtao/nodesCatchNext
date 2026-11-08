@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -96,8 +96,6 @@ public class MainForm : Form
 
 	private ToolStripMenuItem menuDownLoadServer;
 
-	private ToolStripMenuItem menuAutoTestSelected;
-
 	private ToolStripSeparator toolStripSeparator3;
 
 	private ToolStripMenuItem menuAddServers;
@@ -126,16 +124,6 @@ public class MainForm : Form
 
 	private GroupBox groupBox3;
 
-	private Button btnStartTest;
-
-	private Button btnSaveConfig;
-
-	private Button btStopTest;
-
-	private Label label2;
-
-	private TextBox tbLowSpeed;
-
 	private Panel panel2;
 
 	private GroupBox groupBox1;
@@ -146,51 +134,39 @@ public class MainForm : Form
 
 	private Button btnClearResult;
 
-	private Label label3;
+	private Label lblDelayUrl;
 
-	private TextBox tbPingNum;
+	private TextBox tbDelayUrl;
+
+	private Label lblPingCount;
+
+	private TextBox tbPingCount;
 
 	private TextBox tbTimeout;
 
 	private Label label4;
 
-	private ToolStripMenuItem menuRemoveLoseServer;
+	private Button btnTestDelay;
 
-	private ToolStripMenuItem menuRemoveLowServer;
+	private Label lblSpeedUrl;
 
-	private ToolStripMenuItem menuRemoveNoResultServer;
+	private TextBox tbSpeedUrl;
 
-	private CheckBox cbRealPing;
+	private Label lblDownloadThread;
 
-	private CheckBox cbSpeedTest;
+	private TextBox tbDownloadThread;
 
-	private ToolStripSeparator toolStripSeparator7;
+	private Label lblDownloadMaxTime;
 
-	private ToolStripMenuItem menuStartClash;
+	private TextBox tbDownloadMaxTime;
 
-	private TextBox tbClashPort;
+	private Button btnTestSpeed;
 
-	private Label label5;
+	private bool isTestingDelay = false;
 
-	private Label label10;
-
-	private TextBox tb_fm_ave;
-
-	private Label label8;
-
-	private TextBox tb_fm_max;
-
-	private TextBox tb_fm_second;
-
-	private Label label6;
-
-	private CheckBox cbFastMode;
-
-	private TextBox tbThread;
+	private bool isTestingSpeed = false;
 
 	private Button button2;
-
-	private Button btnSettings;
 
 	private Button button1;
 
@@ -201,20 +177,6 @@ public class MainForm : Form
 	private ToolStripMenuItem 导入到节点列表ToolStripMenuItem;
 
 	private Panel groupBox5;
-
-	private Label label12;
-
-	private CheckBox cbAutoSort;
-
-	private Label label15;
-
-	private ComboBox cmbSortColumn;
-
-	private Label label16;
-
-	private ComboBox cmbSortOrder;
-
-	private CheckBox cbStrictMode;
 
 	private TabControl tabSubscriptions;
 
@@ -235,8 +197,6 @@ public class MainForm : Form
 	private Button btnKeywordPreset;
 
 	private ContextMenuStrip cmsKeywordPreset;
-
-	private CheckBox cbAutoSave;
 
 	private ToolTip toolTipKeywordFilter;
 
@@ -265,12 +225,6 @@ public class MainForm : Form
 		{
 			MyAppExit(blWindowsShutDown: false);
 		};
-		cmbSortColumn.SelectedIndex = 0;
-		cmbSortOrder.SelectedIndex = 0;
-		cbAutoSort.Checked = false;
-		cmbSortColumn.Enabled = false;
-		cmbSortOrder.Enabled = false;
-		cbStrictMode.Checked = false;
 	}
 
 	private void InitializeKeywordPresetMenu()
@@ -371,16 +325,6 @@ public class MainForm : Form
 			menuItem.Click += ColumnHeaderMenuItem_Click;
 			cmsColumnHeader.Items.Add(menuItem);
 		}
-		
-		// 添加"最后测速"列（如果启用了记录测速时间）
-		if (config.recordTestTime)
-		{
-			var menuLastTestTime = new ToolStripMenuItem("最后测速");
-			menuLastTestTime.Tag = "lastTestTime";
-			menuLastTestTime.Checked = IsColumnVisible("lastTestTime");
-			menuLastTestTime.Click += ColumnHeaderMenuItem_Click;
-			cmsColumnHeader.Items.Add(menuLastTestTime);
-		}
 	}
 
 	private void ColumnHeaderMenuItem_Click(object sender, EventArgs e)
@@ -408,8 +352,7 @@ public class MainForm : Form
 
 	private void SaveColumnVisibility()
 	{
-		// 保存到配置（UI配置会在窗口关闭时自动保存）
-		ConfigHandler.SaveUIConfigOnly(config);
+		ConfigHandler.ToJsonFile(config);
 	}
 
 	private void RebuildColumns()
@@ -439,12 +382,6 @@ public class MainForm : Form
 				var col = lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
 				col.Tag = key;
 			}
-		}
-		
-		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
-		{
-			var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
-			col.Tag = "lastTestTime";
 		}
 		
 		EnsureColumnHeaderMinWidths();
@@ -496,9 +433,11 @@ public class MainForm : Form
 		("network", "传输协议", 70),
 		("tls", "TLS", 80),
 		("subRemarks", "订阅", 70),
-		("httpsDelay", "HTTPS延迟", 80),
-		("testResult", "平均速度", 200),
-		("MaxSpeed", "峰值速度", 80)
+		("minDelay", "最低延迟", 85),
+		("avgDelay", "平均延迟", 85),
+		("testResult", "平均速度", 120),
+		("MaxSpeed", "峰值速度", 120),
+		("lastTestTime", "最后测速", 130)
 	};
 
 	// 当前列顺序（key列表）
@@ -528,12 +467,6 @@ public class MainForm : Form
 				var col = lvServers.Columns.Add(colDef.displayName, GetVisibleColumnWidth(key, colDef.defaultWidth), HorizontalAlignment.Center);
 				col.Tag = key; // 保存列的 key 用于后续识别
 			}
-		}
-		
-		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
-		{
-			var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
-			col.Tag = "lastTestTime";
 		}
 		EnsureColumnHeaderMinWidths();
 		lvServers.EndUpdate();
@@ -587,23 +520,34 @@ public class MainForm : Form
 		currentColumnOrder = config.uiItem.mainLvColOrder.ToList();
 		
 		// 保存配置
-		ConfigHandler.SaveUIConfigOnly(config);
+		ConfigHandler.ToJsonFile(config);
 	}
 
 	private List<string> GetColumnOrder()
 	{
-		// 清理旧的 tlsRtt 配置（已移除的功能）
+		// 清理旧的 tlsRtt 和 httpsDelay 配置
 		if (config.uiItem?.mainLvColOrder != null)
 		{
 			config.uiItem.mainLvColOrder.RemoveAll(k => k == "tlsRtt");
+			int idx = config.uiItem.mainLvColOrder.IndexOf("httpsDelay");
+			if (idx >= 0)
+			{
+				config.uiItem.mainLvColOrder.RemoveAt(idx);
+				if (!config.uiItem.mainLvColOrder.Contains("avgDelay"))
+					config.uiItem.mainLvColOrder.Insert(idx, "avgDelay");
+				if (!config.uiItem.mainLvColOrder.Contains("minDelay"))
+					config.uiItem.mainLvColOrder.Insert(idx, "minDelay");
+			}
 		}
-		if (config.uiItem?.mainLvColVisible != null && config.uiItem.mainLvColVisible.ContainsKey("tlsRtt"))
+		if (config.uiItem?.mainLvColVisible != null)
 		{
 			config.uiItem.mainLvColVisible.Remove("tlsRtt");
+			config.uiItem.mainLvColVisible.Remove("httpsDelay");
 		}
-		if (config.uiItem?.mainLvColWidth != null && config.uiItem.mainLvColWidth.ContainsKey("tlsRtt"))
+		if (config.uiItem?.mainLvColWidth != null)
 		{
 			config.uiItem.mainLvColWidth.Remove("tlsRtt");
+			config.uiItem.mainLvColWidth.Remove("httpsDelay");
 		}
 		
 		if (config.uiItem?.mainLvColOrder != null && config.uiItem.mainLvColOrder.Count > 0)
@@ -672,7 +616,8 @@ public class MainForm : Form
 			"传输协议" => EServerColName.network,
 			"TLS" => EServerColName.tls,
 			"订阅" => EServerColName.subRemarks,
-			"HTTPS延迟" => EServerColName.httpsDelay,
+			"最低延迟" => EServerColName.minDelay,
+			"平均延迟" => EServerColName.avgDelay,
 			"平均速度" => EServerColName.testResult,
 			"峰值速度" => EServerColName.MaxSpeed,
 			"最后测速" => EServerColName.lastTestTime,
@@ -767,7 +712,8 @@ public class MainForm : Form
 			"network" => vmessItem.network,
 			"tls" => Utils.IsNullOrEmpty(vmessItem.streamSecurity) ? "none" : vmessItem.streamSecurity,
 			"subRemarks" => vmessItem.getSubRemarks(config),
-			"httpsDelay" => Utils.IsNullOrEmpty(vmessItem.httpsDelay) ? "" : vmessItem.httpsDelay,
+			"minDelay" => Utils.IsNullOrEmpty(vmessItem.minDelay) ? "" : vmessItem.minDelay,
+			"avgDelay" => Utils.IsNullOrEmpty(vmessItem.avgDelay) ? "" : vmessItem.avgDelay,
 			"testResult" => vmessItem.testResult,
 			"MaxSpeed" => vmessItem.MaxSpeed,
 			"lastTestTime" => vmessItem.lastTestTime,
@@ -849,6 +795,8 @@ public class MainForm : Form
 		SetVisibleCore(value: false);
 	}
 
+	private bool isInitializing = false;
+
 	private void MainForm_Load(object sender, EventArgs e)
 	{
 		try
@@ -863,7 +811,6 @@ public class MainForm : Form
 		{
 		}
 		ConfigHandler.LoadConfig(ref config);
-		base.Size = config.uiItem.mainSize;
 		v2rayHandler = new V2rayHandler();
 		v2rayHandler.ProcessEvent += v2rayHandler_ProcessEvent;
 		v2rayHandler.ClashStart("-d ./config -ext-ctl 127.0.0.1:40001");
@@ -871,14 +818,14 @@ public class MainForm : Form
 		subconverHandler.ProcessEvent += v2rayHandler_ProcessEvent;
 		subconverHandler.SubconverStartNew();
 		ConfigHandler.ProcessEvent += configHandler_ProcessEvent;
+		TestParameter();
 		InitServersView();
-		InitSubscriptionTabs();
+		InitSubscriptionTabs(restoreSelection: false);
+		RestoreSelectedSubscriptionTab();
 		RefreshServers();
 		RestoreUI();
-		TestParameter();
 		Global.reloadV2ray = false;
 		v2rayHandler.LoadV2rayCore(config);
-		UpdateLastTestTimeColumnVisibility();
 	}
 
 	public void ShowMsg(string msg)
@@ -932,20 +879,59 @@ public class MainForm : Form
 		}
 	}
 
+	private void RestoreSelectedSubscriptionTab()
+	{
+		if (tabSubscriptions == null || tabSubscriptions.TabPages.Count == 0)
+		{
+			return;
+		}
+		string savedSubId = config.uiItem?.selectedSubId;
+		if (string.IsNullOrEmpty(savedSubId) || savedSubId == "__all__")
+		{
+			tabSubscriptions.SelectedIndex = 0;
+			currentSubFilter = null;
+			return;
+		}
+		for (int i = 0; i < tabSubscriptions.TabPages.Count; i++)
+		{
+			if ((tabSubscriptions.TabPages[i].Tag as string) == savedSubId)
+			{
+				tabSubscriptions.SelectedIndex = i;
+				currentSubFilter = savedSubId;
+				return;
+			}
+		}
+		tabSubscriptions.SelectedIndex = 0;
+		currentSubFilter = null;
+	}
+
 	private void RestoreUI()
 	{
 		if (!config.uiItem.mainSize.IsEmpty && config.uiItem.mainSize.Width >= 400 && config.uiItem.mainSize.Height >= 300)
 		{
-			base.Width = config.uiItem.mainSize.Width;
-			base.Height = config.uiItem.mainSize.Height;
+			base.Size = config.uiItem.mainSize;
 		}
-		if (config.saveWindowPosition && !config.uiItem.mainLocation.IsEmpty)
+		if (!config.uiItem.mainLocation.IsEmpty)
 		{
 			Point mainLocation = config.uiItem.mainLocation;
 			if (mainLocation.X > -1000 && mainLocation.Y > -1000 && mainLocation.X < SystemInformation.VirtualScreen.Right && mainLocation.Y < SystemInformation.VirtualScreen.Bottom)
 			{
 				base.StartPosition = FormStartPosition.Manual;
 				base.Location = mainLocation;
+			}
+		}
+		if (config.uiItem.mainMaximized)
+		{
+			base.WindowState = FormWindowState.Maximized;
+		}
+		if (config.uiItem.splitterDistance > 100 && config.uiItem.splitterDistance < splitContainer1.Height - 100)
+		{
+			try
+			{
+				splitContainer1.SplitterDistance = config.uiItem.splitterDistance;
+			}
+			catch
+			{
 			}
 		}
 		for (int i = 0; i < lvServers.Columns.Count; i++)
@@ -957,6 +943,12 @@ public class MainForm : Form
 			{
 				lvServers.Columns[i].Width = Math.Max(val, GetColumnHeaderMinWidth(i));
 			}
+		}
+		if (!string.IsNullOrEmpty(config.uiItem.sortColumnKey))
+		{
+			currentSortColumnKey = config.uiItem.sortColumnKey;
+			currentSortAscending = config.uiItem.sortAscending;
+			SetSortIconByKey(currentSortColumnKey, currentSortAscending);
 		}
 	}
 
@@ -977,33 +969,27 @@ public class MainForm : Form
 
 	private void TestParameter()
 	{
-		tbTimeout.Text = config.Timeout;
-		tbPingNum.Text = config.PingNum;
-		tbLowSpeed.Text = config.LowSpeed;
-		cbFastMode.Checked = config.fastMode;
-		tb_fm_ave.Text = config.FMave;
-		tb_fm_max.Text = config.FMmax;
-		tb_fm_second.Text = config.FMSecond;
-		tbThread.Text = config.Thread;
-		tbClashPort.Text = config.ClashPort;
-		cbSpeedTest.Checked = config.speedAble;
-		cbRealPing.Checked = config.pingAble;
-		cbAutoSort.Checked = config.autoSortEnabled;
-		cmbSortColumn.SelectedIndex = config.autoSortColumn;
-		cmbSortOrder.SelectedIndex = config.autoSortOrder;
-		cbStrictMode.Checked = config.strictExclusionMode;
-		tbKeywordFilter.Text = config.keywordFilter ?? string.Empty;
-		cbKeywordFilter.Checked = config.keywordFilterEnabled;
-		tbKeywordFilter.Enabled = config.keywordFilterEnabled;
-		cbAutoSave.Checked = config.autoSaveAfterTest;
+		isInitializing = true;
+		try
+		{
+			tbDelayUrl.Text = config.speedPingTestUrl ?? string.Empty;
+			tbPingCount.Text = config.PingCount ?? "3";
+			tbTimeout.Text = config.Timeout ?? "5";
+			tbSpeedUrl.Text = config.speedTestUrl ?? string.Empty;
+			tbDownloadThread.Text = config.DownloadThread ?? "4";
+			tbDownloadMaxTime.Text = config.DownloadMaxTime ?? "10";
+			tbKeywordFilter.Text = config.keywordFilter ?? string.Empty;
+			cbKeywordFilter.Checked = config.keywordFilterEnabled;
+			tbKeywordFilter.Enabled = config.keywordFilterEnabled;
+		}
+		finally
+		{
+			isInitializing = false;
+		}
 	}
 
 	private bool DetectTunModeAndWarn()
 	{
-		if (!config.tunWarningEnabled)
-		{
-			return true;
-		}
 		if (Utils.TryDetectTunAdapter(out var adapterDisplayName))
 		{
 			string text = "检测到系统存在可能的代理 TUN/TAP 网卡：\n" + adapterDisplayName + "\n\n开启 TUN 模式会让测速结果包含代理链路导致结果失真，\n建议测速前关闭 TUN 模式或将本程序加入直连列表。\n\n是否仍要继续测速？";
@@ -1024,49 +1010,21 @@ public class MainForm : Form
 		switch (e.CloseReason)
 		{
 		case CloseReason.UserClosing:
-			if (config.exitConfirmEnabled || MessageBox.Show("确认退出吗（请确认配置是否已保存）？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
-			{
-				StorageUI();
-				if (config.saveConfigOnExit)
-				{
-					ConfigHandler.SaveConfig(ref config, reload: false);
-				}
-				else
-				{
-					ConfigHandler.SaveUIConfigOnly(config);
-				}
-				base.Visible = false;
-				Application.Exit();
-			}
-			else
-			{
-				e.Cancel = true;
-			}
+			StorageUI();
+			ConfigHandler.ToJsonFile(config);
+			base.Visible = false;
+			Application.Exit();
 			break;
 		case CloseReason.TaskManagerClosing:
 		case CloseReason.FormOwnerClosing:
 		case CloseReason.ApplicationExitCall:
 			StorageUI();
-			if (config.saveConfigOnExit)
-			{
-				ConfigHandler.SaveConfig(ref config, reload: false);
-			}
-			else
-			{
-				ConfigHandler.SaveUIConfigOnly(config);
-			}
+			ConfigHandler.ToJsonFile(config);
 			MyAppExit(blWindowsShutDown: false);
 			break;
 		case CloseReason.WindowsShutDown:
 			StorageUI();
-			if (config.saveConfigOnExit)
-			{
-				ConfigHandler.SaveConfig(ref config, reload: false);
-			}
-			else
-			{
-				ConfigHandler.SaveUIConfigOnly(config);
-			}
+			ConfigHandler.ToJsonFile(config);
 			MyAppExit(blWindowsShutDown: true);
 			break;
 		case CloseReason.MdiFormClosing:
@@ -1076,11 +1034,30 @@ public class MainForm : Form
 
 	private void StorageUI()
 	{
-		config.uiItem.mainSize = new Size(base.Width, base.Height);
-		if (config.saveWindowPosition)
+		if (base.WindowState == FormWindowState.Maximized)
 		{
+			config.uiItem.mainMaximized = true;
+			if (!base.RestoreBounds.IsEmpty)
+			{
+				config.uiItem.mainSize = base.RestoreBounds.Size;
+				config.uiItem.mainLocation = base.RestoreBounds.Location;
+			}
+		}
+		else if (base.WindowState == FormWindowState.Normal)
+		{
+			config.uiItem.mainMaximized = false;
+			config.uiItem.mainSize = new Size(base.Width, base.Height);
 			config.uiItem.mainLocation = base.Location;
 		}
+		else if (!base.RestoreBounds.IsEmpty)
+		{
+			config.uiItem.mainSize = base.RestoreBounds.Size;
+			config.uiItem.mainLocation = base.RestoreBounds.Location;
+		}
+		config.uiItem.splitterDistance = splitContainer1.SplitterDistance;
+		config.uiItem.selectedSubId = (tabSubscriptions?.SelectedTab != null) ? ((tabSubscriptions.SelectedTab.Tag as string) ?? "__all__") : "__all__";
+		config.uiItem.sortColumnKey = currentSortColumnKey;
+		config.uiItem.sortAscending = currentSortAscending;
 		for (int i = 0; i < lvServers.Columns.Count; i++)
 		{
 			EServerColName eServerColName = GetServerColNameByIndex(i);
@@ -1109,147 +1086,223 @@ public class MainForm : Form
 
 	private void menuRealPingServer_Click(object sender, EventArgs e)
 	{
-		btStopTest.Enabled = true;
-		Speedtest("httpsdelay");
+		StartDelayTest(onlySelected: true);
 	}
 
 	private void menuDownLoadServer_Click(object sender, EventArgs e)
 	{
-		btStopTest.Enabled = true;
-		Speedtest("speedtest");
+		StartDownloadTest(onlySelected: true);
 	}
 
-
-
-	private void menuAutoTestSelected_Click(object sender, EventArgs e)
+	private bool PrepareTargetNodes(bool onlySelected)
 	{
-		if (GetLvSelectedIndex() < 0)
+		if (onlySelected)
 		{
-			UI.Show("请先选择需要测速的服务器", this);
+			if (GetLvSelectedIndex() < 0 || lvSelecteds.Count == 0)
+			{
+				return false;
+			}
+			return true;
+		}
+
+		// 主页按钮点击：若多选了节点则测试选中节点，否则测试当前列表全部节点
+		lvSelecteds.Clear();
+		if (lvServers.SelectedItems.Count > 1)
+		{
+			foreach (ListViewItem selectedItem in lvServers.SelectedItems)
+			{
+				if (selectedItem.Tag != null)
+					lvSelecteds.Add((int)selectedItem.Tag);
+			}
+		}
+		else
+		{
+			foreach (ListViewItem item in lvServers.Items)
+			{
+				if (item.Tag != null)
+					lvSelecteds.Add((int)item.Tag);
+			}
+		}
+
+		if (lvSelecteds.Count == 0)
+		{
+			UI.Show("当前列表没有可测试的节点", this);
+			return false;
+		}
+		return true;
+	}
+
+	private void StartDelayTest(bool onlySelected)
+	{
+		if (isTestingDelay)
+		{
+			cts?.Cancel();
+			return;
+		}
+		if (isTestingSpeed)
+		{
+			UI.Show("当前正在进行下载测试，请先停止后再测试延迟", this);
+			return;
+		}
+		if (!PrepareTargetNodes(onlySelected))
+		{
 			return;
 		}
 		if (!DetectTunModeAndWarn())
 		{
-			AppendText(notify: false, "已取消测速（检测到TUN模式）");
+			AppendText(notify: false, "已取消延迟测试（检测到TUN模式）");
 			return;
 		}
-		btStopTest.Enabled = true;
-		AppendText(notify: false, "选中节点一键自动测速已开启");
+		try
+		{
+			createYamlConfig();
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show(ex.Message, "出现异常");
+			return;
+		}
+
+		isTestingDelay = true;
+		btnTestDelay.Text = "停止测试";
+		btnTestSpeed.Enabled = false;
+		cts = new CancellationTokenSource();
+
+		foreach (int idx in lvSelecteds)
+		{
+			SetDelayResult(idx, "测试中...", "测试中...");
+		}
+
+		AppendText(notify: false, $"开始延迟测试（共 {lvSelecteds.Count} 个节点，无线程限制全并发，每节点测试 {config.PingCount} 次）...");
+		CancellationToken token = cts.Token;
+		SpeedtestHandler handler = new SpeedtestHandler(config, v2rayHandler, new List<int>(lvSelecteds), UpdateDelayHandler, null, delegate
+		{
+			if (base.IsHandleCreated)
+			{
+				BeginInvoke((Action)delegate
+				{
+					isTestingDelay = false;
+					btnTestDelay.Text = "测试延迟";
+					btnTestSpeed.Enabled = true;
+					SortListView();
+					ConfigHandler.ToJsonFile(config);
+				});
+			}
+		});
 		Task.Run(delegate
 		{
-			AutoRunSelected();
+			handler.RunDelayTest(token);
 		});
 	}
 
-	private void Speedtest(string actionType)
+	private void StartDownloadTest(bool onlySelected)
 	{
-		if (GetLvSelectedIndex() < 0)
+		if (isTestingSpeed)
+		{
+			cts?.Cancel();
+			return;
+		}
+		if (isTestingDelay)
+		{
+			UI.Show("当前正在进行延迟测试，请先停止后再测试下载", this);
+			return;
+		}
+		if (!PrepareTargetNodes(onlySelected))
 		{
 			return;
 		}
-		int pid = -1;
-		bool flag = false;
-		foreach (int lvSelected in lvSelecteds)
+		if (!DetectTunModeAndWarn())
 		{
-			if (lvSelected >= 0 && lvSelected < config.vmess.Count && config.vmess[lvSelected].configType == 11)
-			{
-				flag = true;
-				break;
-			}
-		}
-		if ((actionType == "realping" && config.ThreadNum == 0) || (actionType == "speedtest" && config.DownloadThreadNum == 0) || actionType == "httpsdelay" || flag)
-		{
-			try
-			{
-				createYamlConfig();
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(ex.Message, "出现异常");
-				return;
-			}
-		}
-		else if ((actionType == "realping" && config.ThreadNum == 1) || (actionType == "speedtest" && config.DownloadThreadNum == 1))
-		{
-			AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
+			AppendText(notify: false, "已取消下载测速（检测到TUN模式）");
 			return;
 		}
-		speedtestNodeMap.Clear();
-		foreach (int lvSelected2 in lvSelecteds)
+		try
 		{
-			if (lvSelected2 >= 0 && lvSelected2 < config.vmess.Count)
-			{
-				speedtestNodeMap[lvSelected2] = config.vmess[lvSelected2];
-			}
+			createYamlConfig();
 		}
-		switch (actionType)
+		catch (Exception ex)
 		{
-		case "httpsdelay":
-		case "realping":
-			foreach (int lvSelected4 in lvSelecteds)
-			{
-				SetHttpsDelay(lvSelected4, "");
-			}
-			break;
-		case "speedtest":
-			foreach (int lvSelected7 in lvSelecteds)
-			{
-				SetTestResult(lvSelected7, "等待测速线程...");
-			}
-			break;
-		default:
-			ClearTestResult();
-			break;
+			MessageBox.Show(ex.Message, "出现异常");
+			return;
 		}
-		config.index = 0;
+
+		isTestingSpeed = true;
+		btnTestSpeed.Text = "停止测试";
+		btnTestDelay.Enabled = false;
 		cts = new CancellationTokenSource();
-		switch (actionType)
+
+		foreach (int idx in lvSelecteds)
 		{
-		case "realping":
-		case "httpsdelay":
-			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
-			break;
-		default:
-			new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, actionType, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
-			break;
+			SetSpeedResult(idx, "等待测试...", "");
 		}
+
+		AppendText(notify: false, $"开始下载测速（共 {lvSelecteds.Count} 个节点，并发线程：{config.DownloadThread}，最大时间：{config.DownloadMaxTime} 秒）...");
+		CancellationToken token = cts.Token;
+		SpeedtestHandler handler = new SpeedtestHandler(config, v2rayHandler, new List<int>(lvSelecteds), null, UpdateSpeedHandler, delegate
+		{
+			if (base.IsHandleCreated)
+			{
+				BeginInvoke((Action)delegate
+				{
+					isTestingSpeed = false;
+					btnTestSpeed.Text = "测试下载";
+					btnTestDelay.Enabled = true;
+					SortListView();
+					ConfigHandler.ToJsonFile(config);
+				});
+			}
+		});
+		Task.Run(delegate
+		{
+			handler.RunDownloadTest(token);
+		});
 	}
 
-	private void SetMaxSpeedResult(int k, string txt)
+	private void SetDelayResult(int k, string minTxt, string avgTxt)
 	{
 		if (k < 0 || k >= config.vmess.Count)
 		{
 			return;
 		}
-		config.vmess[k].MaxSpeed = txt;
+		config.vmess[k].minDelay = minTxt;
+		config.vmess[k].avgDelay = avgTxt;
 		foreach (ListViewItem item in lvServers.Items)
 		{
 			if (item.Tag != null && (int)item.Tag == k)
 			{
-				if (item.SubItems.ContainsKey("MaxSpeed"))
-					item.SubItems["MaxSpeed"].Text = txt;
+				if (item.SubItems.ContainsKey("minDelay"))
+					item.SubItems["minDelay"].Text = minTxt;
+				if (item.SubItems.ContainsKey("avgDelay"))
+					item.SubItems["avgDelay"].Text = avgTxt;
 				break;
 			}
 		}
+		if (((minTxt != null && minTxt.Contains("ms")) || (avgTxt != null && avgTxt.Contains("ms"))) && (minTxt == null || !minTxt.Contains("测试中")))
+		{
+			SetLastTestTime(k, DateTime.Now.ToString("MM-dd HH:mm:ss"));
+		}
 	}
 
-	private void SetTestResult(int k, string txt)
+	private void SetSpeedResult(int k, string avgTxt, string maxTxt)
 	{
 		if (k < 0 || k >= config.vmess.Count)
 		{
 			return;
 		}
-		config.vmess[k].testResult = txt;
+		config.vmess[k].testResult = avgTxt;
+		config.vmess[k].MaxSpeed = maxTxt;
 		foreach (ListViewItem item in lvServers.Items)
 		{
 			if (item.Tag != null && (int)item.Tag == k)
 			{
 				if (item.SubItems.ContainsKey("testResult"))
-					item.SubItems["testResult"].Text = txt;
+					item.SubItems["testResult"].Text = avgTxt;
+				if (item.SubItems.ContainsKey("MaxSpeed"))
+					item.SubItems["MaxSpeed"].Text = maxTxt;
 				break;
 			}
 		}
-		if (txt.Contains("MB/s") || txt.Contains("KB/s"))
+		if (avgTxt != null && avgTxt.Contains("Mbps") && !avgTxt.Contains("测速中"))
 		{
 			SetLastTestTime(k, DateTime.Now.ToString("MM-dd HH:mm:ss"));
 		}
@@ -1257,7 +1310,7 @@ public class MainForm : Form
 
 	private void SetLastTestTime(int k, string txt)
 	{
-		if (!config.recordTestTime || k < 0 || k >= config.vmess.Count)
+		if (k < 0 || k >= config.vmess.Count)
 		{
 			return;
 		}
@@ -1272,32 +1325,6 @@ public class MainForm : Form
 				}
 				break;
 			}
-		}
-	}
-
-	private void SetHttpsDelay(int k, string txt)
-	{
-		if (k < 0 || k >= config.vmess.Count)
-		{
-			return;
-		}
-		config.vmess[k].httpsDelay = txt;
-		foreach (ListViewItem item in lvServers.Items)
-		{
-			if (item.Tag != null && (int)item.Tag == k)
-			{
-				if (item.SubItems.ContainsKey("httpsDelay"))
-					item.SubItems["httpsDelay"].Text = txt;
-				break;
-			}
-		}
-	}
-
-	private void ClearTestResult()
-	{
-		foreach (int lvSelected in lvSelecteds)
-		{
-			SetTestResult(lvSelected, "等待测速线程...");
 		}
 	}
 
@@ -1337,32 +1364,19 @@ public class MainForm : Form
 						listAnyTLSNames.Add(item);
 						continue;
 					}
-					// VLESS Reality 节点直接生成 YAML（绕过 subconverter）
-					// 检测条件：configType == 5 (VLESS) 且 streamSecurity == "reality" 且 publicKey 非空 且 shortId 非空
-					// Mihomo 要求 short-id 必须有效，不能为空
-					bool isVlessReality = vmessItem.configType == 5 && 
-						vmessItem.streamSecurity == "reality" && 
-						!string.IsNullOrEmpty(vmessItem.publicKey) &&
-						!string.IsNullOrEmpty(vmessItem.shortId);
-					
-					// 检测是否为有问题的 Reality 节点（有 publicKey 但没有 shortId）
-					// 这类节点不能发送给 subconverter，否则会生成无效的配置
-					bool isBrokenReality = vmessItem.configType == 5 && 
-						vmessItem.streamSecurity == "reality" && 
-						!string.IsNullOrEmpty(vmessItem.publicKey) &&
-						string.IsNullOrEmpty(vmessItem.shortId);
-					
-					if (isVlessReality)
+					// VLESS 节点全部直接生成 YAML（绕过不支持 VLESS 的 subconverter）
+					if (vmessItem.configType == 5)
 					{
+						// 跳过有问题的 Reality 节点（缺 publicKey 或缺 shortId）
+						bool isBrokenReality = vmessItem.streamSecurity == "reality" && 
+							(string.IsNullOrEmpty(vmessItem.publicKey) || string.IsNullOrEmpty(vmessItem.shortId));
+						if (isBrokenReality)
+						{
+							continue;
+						}
 						string item = (config.GetLocalPort() + lvSelected).ToString();
 						listVlessReality.Add(vmessItem);
 						listVlessRealityNames.Add(item);
-						continue;
-					}
-					
-					// 跳过有问题的 Reality 节点（不发送给 subconverter）
-					if (isBrokenReality)
-					{
 						continue;
 					}
 				}
@@ -1385,6 +1399,10 @@ public class MainForm : Form
 				obj.ContinueTimeout = 10000;
 				using StreamReader streamReader = new StreamReader(obj.GetResponse().GetResponseStream(), Encoding.UTF8);
 				text4 = streamReader.ReadToEnd();
+				if (text4.Contains("proxies: ~"))
+				{
+					text4 = text4.Replace("proxies: ~", "proxies:");
+				}
 			}
 			else
 			{
@@ -1430,58 +1448,14 @@ public class MainForm : Form
 					}
 				}
 			}
-			// 生成 VLESS Reality 节点的 YAML 配置
+			// 生成 VLESS 节点的 YAML 配置
 			if (listVlessReality.Count > 0)
 			{
 				StringBuilder sbVlessProxies = new StringBuilder();
 				StringBuilder sbVlessProxyNames = new StringBuilder();
 				for (int i = 0; i < listVlessReality.Count; i++)
 				{
-					VmessItem item = listVlessReality[i];
-					string proxyName = listVlessRealityNames[i];
-					bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
-					
-					sbVlessProxies.AppendLine("  - name: \"" + proxyName + "\"");
-					sbVlessProxies.AppendLine("    type: vless");
-					sbVlessProxies.AppendLine("    server: " + item.address);
-					sbVlessProxies.AppendLine($"    port: {item.port}");
-					sbVlessProxies.AppendLine("    uuid: \"" + item.id + "\"");
-					sbVlessProxies.AppendLine("    network: " + (string.IsNullOrEmpty(item.network) ? "tcp" : item.network));
-					sbVlessProxies.AppendLine("    tls: true");
-					sbVlessProxies.AppendLine("    udp: true");
-					
-					// flow (xtls-rprx-vision)
-					if (!string.IsNullOrEmpty(item.flow))
-					{
-						sbVlessProxies.AppendLine("    flow: " + item.flow);
-					}
-					
-					// client-fingerprint
-					string fingerprint = string.IsNullOrEmpty(item.fingerprint) ? "chrome" : item.fingerprint;
-					sbVlessProxies.AppendLine("    client-fingerprint: " + fingerprint);
-					
-					// servername (SNI)
-					if (!string.IsNullOrEmpty(item.sni))
-					{
-						sbVlessProxies.AppendLine("    servername: " + item.sni);
-					}
-					
-					sbVlessProxies.AppendLine("    skip-cert-verify: " + skipCertVerify.ToString().ToLower());
-					
-					// Reality 配置
-					sbVlessProxies.AppendLine("    reality-opts:");
-					if (!string.IsNullOrEmpty(item.publicKey))
-					{
-						sbVlessProxies.AppendLine("      public-key: " + item.publicKey);
-					}
-					// short-id 只在非空时输出（Mihomo 不接受空的 short-id）
-					// 必须用引号包裹，否则 YAML 会把 "01" 解析为数字 1
-					if (!string.IsNullOrEmpty(item.shortId))
-					{
-						sbVlessProxies.AppendLine("      short-id: \"" + item.shortId + "\"");
-					}
-					
-					sbVlessProxyNames.AppendLine("      - \"" + proxyName + "\"");
+					AppendVlessNodeYaml(sbVlessProxies, sbVlessProxyNames, listVlessReality[i], listVlessRealityNames[i]);
 				}
 				
 				int num = text4.IndexOf("proxies:");
@@ -1506,13 +1480,15 @@ public class MainForm : Form
 			{
 				throw new Exception("没有可用测速节点");
 			}
+			text4 = EnsureUnifiedDelayInYaml(text4);
+			text4 = InjectPerNodeListenersInYaml(text4);
 			File.WriteAllText(path2, text4, Encoding.UTF8);
 			string nativeNodeInfo = "";
 			if (listAnyTLS.Count > 0) nativeNodeInfo += $"{listAnyTLS.Count} 个 AnyTLS";
 			if (listVlessReality.Count > 0)
 			{
 				if (nativeNodeInfo.Length > 0) nativeNodeInfo += ", ";
-				nativeNodeInfo += $"{listVlessReality.Count} 个 VLESS Reality";
+				nativeNodeInfo += $"{listVlessReality.Count} 个 VLESS";
 			}
 			if (nativeNodeInfo.Length > 0)
 			{
@@ -1547,9 +1523,10 @@ public class MainForm : Form
 				throw new Exception("切换http代理端口失败！" + text2);
 			}
 			ShowMsg("切换http代理端口成功！");
-			text2 = ConfigHandler.sendReq(JsonConvert.SerializeObject(new
+			text2 = ConfigHandler.sendReq(JsonConvert.SerializeObject(new Dictionary<string, object>
 			{
-				mode = "Global"
+				{ "mode", "Global" },
+				{ "unified-delay", true }
 			}, Formatting.None), text3, "PATCH");
 			if (text2 != "204")
 			{
@@ -1572,33 +1549,93 @@ public class MainForm : Form
 		}
 	}
 
-	private void UpdateSpeedtestHandler(int index, string msg)
+	private static string EnsureUnifiedDelayInYaml(string yamlContent)
 	{
-		lvServers.Invoke((MethodInvoker)delegate
+		if (string.IsNullOrEmpty(yamlContent))
 		{
-			SetTestResult(index, msg);
-		});
+			return yamlContent;
+		}
+		if (Regex.IsMatch(yamlContent, @"(?m)^\s*unified-delay\s*:"))
+		{
+			return Regex.Replace(yamlContent, @"(?m)^(\s*unified-delay\s*:\s*).*$", "${1}true");
+		}
+		return "unified-delay: true\r\n" + yamlContent;
 	}
 
-	private void UpdateHttpsDelayHandler(int index, string msg)
+	private static string InjectPerNodeListenersInYaml(string yamlContent)
 	{
-		lvServers.Invoke((MethodInvoker)delegate
+		if (string.IsNullOrEmpty(yamlContent))
 		{
-			SetHttpsDelay(index, msg);
-		});
+			return yamlContent;
+		}
+		int proxiesIdx = yamlContent.IndexOf("proxies:");
+		if (proxiesIdx < 0)
+		{
+			return yamlContent;
+		}
+		int groupsIdx = yamlContent.IndexOf("proxy-groups:", proxiesIdx);
+		string proxiesSection = (groupsIdx > proxiesIdx)
+			? yamlContent.Substring(proxiesIdx, groupsIdx - proxiesIdx)
+			: yamlContent.Substring(proxiesIdx);
+
+		MatchCollection matches = Regex.Matches(proxiesSection, @"(?m)^\s*-\s*(?:\{[^\r\n]*?\b)?name\s*:\s*[""']?(\d{5,6})[""']?(?:\s*[,}]|\s*$)");
+		HashSet<int> ports = new HashSet<int>();
+		StringBuilder sbListeners = new StringBuilder();
+		sbListeners.AppendLine("listeners:");
+		foreach (Match match in matches)
+		{
+			if (int.TryParse(match.Groups[1].Value, out int port) && port >= 10000 && port <= 65535 && ports.Add(port))
+			{
+				sbListeners.AppendLine($"  - name: in_{port}");
+				sbListeners.AppendLine("    type: mixed");
+				sbListeners.AppendLine($"    port: {port}");
+				sbListeners.AppendLine("    listen: 127.0.0.1");
+				sbListeners.AppendLine($"    proxy: \"{port}\"");
+			}
+		}
+		if (ports.Count == 0)
+		{
+			return yamlContent;
+		}
+		return yamlContent.Insert(proxiesIdx, sbListeners.ToString());
 	}
 
-	private void UpdateMaxSpeedHandler(int index, string msg)
+	private void UpdateDelayHandler(VmessItem node, string minDelay, string avgDelay, bool isNodeFinished)
 	{
-		lvServers.Invoke((MethodInvoker)delegate
+		if (lvServers.IsHandleCreated && node != null)
 		{
-			SetMaxSpeedResult(index, msg);
-		});
+			lvServers.BeginInvoke((MethodInvoker)delegate
+			{
+				int k = config.vmess.IndexOf(node);
+				if (k >= 0)
+				{
+					SetDelayResult(k, minDelay, avgDelay);
+					if (isNodeFinished)
+					{
+						SortListView();
+					}
+				}
+			});
+		}
 	}
 
-	private void btStopTestStat(bool enable)
+	private void UpdateSpeedHandler(VmessItem node, string avgSpeed, string maxSpeed, bool isNodeFinished)
 	{
-		btStopTest.Enabled = enable;
+		if (lvServers.IsHandleCreated && node != null)
+		{
+			lvServers.BeginInvoke((MethodInvoker)delegate
+			{
+				int k = config.vmess.IndexOf(node);
+				if (k >= 0)
+				{
+					SetSpeedResult(k, avgSpeed, maxSpeed);
+					if (isNodeFinished)
+					{
+						SortListView();
+					}
+				}
+			});
+		}
 	}
 
 	private int GetLvSelectedIndex()
@@ -1730,6 +1767,7 @@ public class MainForm : Form
 		if (num > 0)
 		{
 			RefreshServers();
+			ConfigHandler.ToJsonFile(config);
 			UI.Show($"成功从剪贴板导入{num}个节点", this);
 		}
 		else
@@ -2046,10 +2084,6 @@ public class MainForm : Form
 
 	private void EditSelectedServer()
 	{
-		if (!config.allowEditServer)
-		{
-			return;
-		}
 		if (GetLvSelectedIndex() < 0)
 		{
 			UI.Show("请先选择需要编辑的节点", this);
@@ -2068,6 +2102,7 @@ public class MainForm : Form
 			{
 				config.vmess[num] = editServerForm.ResultItem;
 				RefreshServers();
+				ConfigHandler.ToJsonFile(config);
 				AppendText(notify: false, "节点 [" + editServerForm.ResultItem.remarks + "] 已更新");
 			}
 		}
@@ -2082,6 +2117,7 @@ public class MainForm : Form
 				ConfigHandler.RemoveServer(ref config, lvSelecteds[num]);
 			}
 			RefreshServers();
+			ConfigHandler.ToJsonFile(config);
 		}
 	}
 
@@ -2095,6 +2131,7 @@ public class MainForm : Form
 			config.vmess = result;
 		}
 		RefreshServers();
+		ConfigHandler.ToJsonFile(config);
 		UI.Show($"执行完成。已删除{count - count2}个重复节点", this);
 	}
 
@@ -2159,9 +2196,6 @@ public class MainForm : Form
 			case Keys.R:
 				menuRealPingServer_Click(null, null);
 				break;
-			case Keys.E:
-				menuAutoTestSelected_Click(null, null);
-				break;
 			}
 		}
 		else if (e.KeyCode == Keys.Delete)
@@ -2211,6 +2245,11 @@ public class MainForm : Form
 			SetSortIconByKey(columnKey, ascending);
 			currentSortColumnKey = columnKey;
 			currentSortAscending = ascending;
+			if (config?.uiItem != null)
+			{
+				config.uiItem.sortColumnKey = currentSortColumnKey;
+				config.uiItem.sortAscending = currentSortAscending;
+			}
 		}
 		catch
 		{
@@ -2230,7 +2269,8 @@ public class MainForm : Form
 			"network" => EServerColName.network,
 			"tls" => EServerColName.tls,
 			"subRemarks" => EServerColName.subRemarks,
-			"httpsDelay" => EServerColName.httpsDelay,
+			"minDelay" => EServerColName.minDelay,
+			"avgDelay" => EServerColName.avgDelay,
 			"testResult" => EServerColName.testResult,
 			"MaxSpeed" => EServerColName.MaxSpeed,
 			"lastTestTime" => EServerColName.lastTestTime,
@@ -2291,14 +2331,9 @@ public class MainForm : Form
 			{
 				InitSubscriptionTabs();
 				RefreshServers();
+				ConfigHandler.ToJsonFile(config);
 			}
 		}
-	}
-
-	private void btnSaveConfig_Click(object sender, EventArgs e)
-	{
-		ConfigHandler.SaveConfig(ref config, reload: false);
-		MessageBox.Show("配置文件保存成功！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
 	}
 
 	private void btnClearLog_Click(object sender, EventArgs e)
@@ -2316,6 +2351,8 @@ public class MainForm : Form
 				int num2 = (int)item.Tag;
 				if (num2 >= 0 && num2 < config.vmess.Count)
 				{
+					config.vmess[num2].minDelay = "";
+					config.vmess[num2].avgDelay = "";
 					config.vmess[num2].httpsDelay = "";
 					config.vmess[num2].testResult = "";
 					config.vmess[num2].MaxSpeed = "";
@@ -2323,1077 +2360,61 @@ public class MainForm : Form
 					num++;
 				}
 			}
-			if (item.SubItems.ContainsKey("httpsDelay"))
-				item.SubItems["httpsDelay"].Text = "";
+			if (item.SubItems.ContainsKey("minDelay"))
+				item.SubItems["minDelay"].Text = "";
+			if (item.SubItems.ContainsKey("avgDelay"))
+				item.SubItems["avgDelay"].Text = "";
 			if (item.SubItems.ContainsKey("testResult"))
 				item.SubItems["testResult"].Text = "";
 			if (item.SubItems.ContainsKey("MaxSpeed"))
 				item.SubItems["MaxSpeed"].Text = "";
-			if (config.recordTestTime && item.SubItems.ContainsKey("lastTestTime"))
+			if (item.SubItems.ContainsKey("lastTestTime"))
 			{
 				item.SubItems["lastTestTime"].Text = "";
 			}
 		}
+		ConfigHandler.ToJsonFile(config);
 		AppendText(notify: false, $"已清空当前列表 {num} 个节点的测速结果");
 	}
 
-	private void button1_Click(object sender, EventArgs e)
+	private void btnTestDelay_Click(object sender, EventArgs e)
 	{
-		cts.Cancel();
-		btStopTest.Enabled = false;
-		MessageBox.Show("已取消测速，请等待当前线程结束，否则软件将崩溃", "提示", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+		StartDelayTest(onlySelected: false);
 	}
 
-	private void btnStartTest_Click(object sender, EventArgs e)
+	private void btnTestSpeed_Click(object sender, EventArgs e)
 	{
-		if (!cbRealPing.Checked && !cbSpeedTest.Checked)
-		{
-			return;
-		}
-		if (btnStartTest.Text == "一键自动测速")
-		{
-			if (!DetectTunModeAndWarn())
-			{
-				AppendText(notify: false, "已取消测速（检测到TUN模式）");
-				return;
-			}
-			AppendText(notify: false, "一键自动测速已开启");
-			if (config.autoDedupEnabled)
-			{
-				Utils.DedupServerList(config.vmess, out var result, keepOlder: true);
-				int count = config.vmess.Count;
-				int count2 = result.Count;
-				AppendText(notify: false, $"删除重复节点：{count - count2}个");
-				if (result != null)
-				{
-					config.vmess = result;
-				}
-				RefreshServers();
-			}
-			btnStartTest.Text = "取消";
-			Task.Run(delegate
-			{
-				AutoRun();
-			});
-		}
-		else
-		{
-			cts.Cancel();
-			MessageBox.Show("已取消测速，请等待当前线程结束，否则软件将崩溃", "提示", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-			btnStartTest.Text = "一键自动测速";
-		}
+		StartDownloadTest(onlySelected: false);
 	}
 
-	public void AutoRunSelected()
+	private void tbDelayUrl_TextChanged(object sender, EventArgs e)
 	{
-		int pid = -1;
-		cts = new CancellationTokenSource();
-		CancellationToken token = cts.Token;
-		List<int> list = new List<int>(lvSelecteds);
-		if (list.Count == 0)
-		{
-			Invoke((Action)delegate
-			{
-				UI.Show("请先选择需要测速的服务器", this);
-			});
-			return;
-		}
-		Action<bool> action = delegate
-		{
-		};
-		int num = 0;
-		AppendText(notify: false, $"开始测试选中的 {list.Count} 个节点...");
-		if (cbRealPing.Checked)
-		{
-			AppendText(notify: false, "开始 HTTPS 延迟测试...");
-			config.index = 0;
-			if (config.ThreadNum == 0)
-			{
-				try
-				{
-					createYamlConfig();
-				}
-				catch (Exception ex)
-				{
-					MessageBox.Show(ex.Message, "出现异常");
-					Invoke((Action)delegate
-					{
-						btStopTest.Enabled = false;
-					});
-					return;
-				}
-				speedtestNodeMap.Clear();
-				foreach (int item in list)
-				{
-					if (item >= 0 && item < config.vmess.Count)
-					{
-						speedtestNodeMap[item] = config.vmess[item];
-						// 使用 Invoke 确保在 UI 线程上更新
-						lvServers.Invoke((MethodInvoker)delegate
-						{
-							SetHttpsDelay(item, "");
-						});
-					}
-				}
-				SpeedtestHandler httpsHandler = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, action, pid);
-				if (config.ThreadNum == 0)
-				{
-					Thread thread = new Thread((ThreadStart)delegate
-					{
-						httpsHandler.RunRealPing(token);
-					});
-					thread.Start();
-					thread.Join();
-				}
-				else
-				{
-					Thread thread2 = new Thread((ThreadStart)delegate
-					{
-						httpsHandler.RunRealPing2(token);
-					});
-					thread2.Start();
-					thread2.Join();
-				}
-				RefreshServers();
-				Thread.Sleep(200);
-			}
-			else
-			{
-				AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
-			}
-			// 使用专门的方法删除 HTTPS 延迟测试失败的节点（无论是否严格模式）
-			Dictionary<string, int> dictionary = RemoveHttpsDelayFailedServers();
-			num = dictionary.Values.Sum();
-			if (num > 0)
-			{
-				AppendText(notify: false, $"移除HTTPS延迟测试失败的节点：共 {num} 个");
-				foreach (KeyValuePair<string, int> item2 in dictionary)
-				{
-					AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
-				}
-				RefreshServers();
-				Thread.Sleep(200);
-			}
-			else
-			{
-				AppendText(notify: false, "移除HTTPS延迟测试失败的节点：0 个");
-			}
-		}
-		if (cbSpeedTest.Checked && !token.IsCancellationRequested)
-		{
-			List<int> list2 = new List<int>();
-			if (cbRealPing.Checked && num > 0)
-			{
-				foreach (KeyValuePair<int, VmessItem> item3 in speedtestNodeMap)
-				{
-					VmessItem value = item3.Value;
-					for (int num2 = 0; num2 < config.vmess.Count; num2++)
-					{
-						VmessItem vmessItem = config.vmess[num2];
-						if (vmessItem.remarks == value.remarks && vmessItem.address == value.address && vmessItem.port == value.port)
-						{
-							list2.Add(num2);
-							break;
-						}
-					}
-				}
-			}
-			else
-			{
-				list2 = list;
-			}
-			if (list2.Count == 0)
-			{
-				AppendText(notify: false, "所有选中节点均已被删除，测速结束");
-				Invoke((Action)delegate
-				{
-					btStopTest.Enabled = false;
-				});
-				return;
-			}
-			AppendText(notify: false, $"开始下载速度测试...（共 {list2.Count} 个节点）");
-			config.index = 0;
-			if (config.DownloadThreadNum != 0)
-			{
-				AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
-				Invoke((Action)delegate
-				{
-					btStopTest.Enabled = false;
-				});
-				return;
-			}
-			// 更新 lvSelecteds 为当前要测速的节点列表，确保配置文件中的代理名称与测速时使用的索引一致
-			lvSelecteds = list2;
-			try
-			{
-				createYamlConfig();
-			}
-			catch (Exception ex3)
-			{
-				MessageBox.Show(ex3.Message, "出现异常");
-				Invoke((Action)delegate
-				{
-					btStopTest.Enabled = false;
-				});
-				return;
-			}
-			speedtestNodeMap.Clear();
-			foreach (int item4 in list2)
-			{
-				if (item4 >= 0 && item4 < config.vmess.Count)
-				{
-					speedtestNodeMap[item4] = config.vmess[item4];
-					// 使用 Invoke 确保在 UI 线程上更新
-					lvServers.Invoke((MethodInvoker)delegate
-					{
-						SetTestResult(item4, "等待测速线程...");
-					});
-				}
-			}
-			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, list2, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, action, pid);
-			if (config.DownloadThreadNum == 0)
-			{
-				Thread thread3 = new Thread((ThreadStart)delegate
-				{
-					testSpeed.RunSpeedTest(token);
-				});
-				thread3.Start();
-				thread3.Join();
-			}
-			else
-			{
-				Thread thread4 = new Thread((ThreadStart)delegate
-				{
-					testSpeed.RunSpeedTest2(token);
-				});
-				thread4.Start();
-				thread4.Join();
-			}
-			RefreshServers();
-			if (!token.IsCancellationRequested)
-			{
-				Invoke((Action)delegate
-				{
-					SortListView();
-				});
-			}
-			// 使用专门的方法删除下载测速失败的节点（只删除 speedtestNodeMap 中的节点）
-			Dictionary<string, int> dictionaryDownloadFailed = RemoveDownloadTestFailedServers();
-			int numDownloadFailed = dictionaryDownloadFailed.Values.Sum();
-			if (numDownloadFailed > 0)
-			{
-				AppendText(notify: false, $"移除下载测速失败的节点：共 {numDownloadFailed} 个");
-				foreach (KeyValuePair<string, int> itemDownloadFailed in dictionaryDownloadFailed)
-				{
-					AppendText(notify: false, $"  - {itemDownloadFailed.Key}：{itemDownloadFailed.Value} 个");
-				}
-			}
-			else
-			{
-				AppendText(notify: false, "移除下载测速失败的节点：0 个");
-			}
-			RefreshServers();
-			Thread.Sleep(200);
-		}
-		if (!token.IsCancellationRequested)
-		{
-			Dictionary<string, int> dictionary2 = RemoveLowSpeedServers();
-			int num3 = dictionary2.Values.Sum();
-			if (num3 > 0)
-			{
-				AppendText(notify: false, $"移除低速服务器（阈值：{tbLowSpeed.Text.Trim()} MB/s）：共 {num3} 个");
-				foreach (KeyValuePair<string, int> item5 in dictionary2)
-				{
-					AppendText(notify: false, $"  - {item5.Key}：{item5.Value} 个");
-				}
-			}
-			else
-			{
-				AppendText(notify: false, "移除低速服务器（阈值：" + tbLowSpeed.Text.Trim() + " MB/s）：0 个");
-			}
-			RefreshServers();
-		}
-		AppendText(notify: false, "选中节点自动测速完成！");
-		if (config.autoRemoveNoResultServer)
-		{
-			RemoveNoResultServers();
-			RefreshServers();
-		}
-		Invoke((Action)delegate
-		{
-			btStopTest.Enabled = false;
-		});
+		config.speedPingTestUrl = tbDelayUrl.Text.Trim();
 	}
 
-	public void AutoRun()
+	private void tbPingCount_TextChanged(object sender, EventArgs e)
 	{
-		int pid = -1;
-		cts = new CancellationTokenSource();
-		CancellationToken token = cts.Token;
-		if (config.vmess == null || config.vmess.Count == 0)
-		{
-			Invoke((Action)delegate
-			{
-				UI.Show("请先选择需要测速的服务器", this);
-				btnStartTest.Text = "一键自动测速";
-			});
-			return;
-		}
-		if (cbRealPing.Checked)
-		{
-			do
-			{
-				if (token.IsCancellationRequested)
-				{
-					return;
-				}
-				foreach (ListViewItem item in lvServers.Items)
-				{
-					item.Selected = true;
-				}
-				if (GetLvSelectedIndex() < 0)
-				{
-					Invoke((Action)delegate
-					{
-						btnStartTest.Text = "一键自动测速";
-					});
-					return;
-				}
-				AppendText(notify: false, "开始 HTTPS 延迟测试...");
-				config.index = 0;
-				if (config.ThreadNum == 0)
-				{
-					try
-					{
-						createYamlConfig();
-					}
-					catch (Exception ex)
-					{
-						MessageBox.Show(ex.Message, "出现异常");
-						btnStartTest.Text = "一键自动测速";
-						return;
-					}
-					speedtestNodeMap.Clear();
-					foreach (int lvSelected in lvSelecteds)
-					{
-						if (lvSelected >= 0 && lvSelected < config.vmess.Count)
-						{
-							speedtestNodeMap[lvSelected] = config.vmess[lvSelected];
-						}
-					}
-					Task.Run(delegate
-					{
-						foreach (int lvSelected2 in lvSelecteds)
-						{
-							// 使用 Invoke 确保在 UI 线程上更新
-							lvServers.Invoke((MethodInvoker)delegate
-							{
-								SetHttpsDelay(lvSelected2, "");
-							});
-						}
-					}).Wait();
-					SpeedtestHandler statistics = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, lvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, UpdateHttpsDelayHandler, btStopTestStat, pid);
-					if (config.ThreadNum == 0)
-					{
-						Thread thread = new Thread((ThreadStart)delegate
-						{
-							statistics.RunRealPing(token);
-						});
-						thread.Start();
-						thread.Join();
-					}
-					else
-					{
-						Thread thread2 = new Thread((ThreadStart)delegate
-						{
-							statistics.RunRealPing2(token);
-						});
-						thread2.Start();
-						thread2.Join();
-					}
-					// 使用专门的方法删除 HTTPS 延迟测试失败的节点（无论是否严格模式）
-					Dictionary<string, int> dictionary = RemoveHttpsDelayFailedServers();
-					int num = dictionary.Values.Sum();
-					if (num > 0)
-					{
-						AppendText(notify: false, $"移除HTTPS延迟测试失败的节点：共 {num} 个");
-						foreach (KeyValuePair<string, int> item2 in dictionary)
-						{
-							AppendText(notify: false, $"  - {item2.Key}：{item2.Value} 个");
-						}
-					}
-					else
-					{
-						AppendText(notify: false, "移除HTTPS延迟测试失败的节点：0 个");
-					}
-					Thread.Sleep(200);
-					RefreshServers();
-					Thread.Sleep(200);
-					pid = -1;
-					continue;
-				}
-				AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
-				btnStartTest.Text = "一键自动测速";
-				return;
-			}
-			while (lvServers.Items.Count > Convert.ToInt32(config.PingNum));
-		}
-		if (cbSpeedTest.Checked && lvServers.Items.Count > 0)
-		{
-			// 检查 speedtestNodeMap 是否为空（所有节点都被删除了）
-			if (speedtestNodeMap.Count == 0)
-			{
-				AppendText(notify: false, "所有测速节点均已被删除，测速结束");
-				Invoke((Action)delegate
-				{
-					btnStartTest.Text = "一键自动测速";
-				});
-				return;
-			}
-			
-			// speedtestNodeMap 已经在 RemoveHttpsDelayFailedServers() 中更新了索引
-			// 直接使用 speedtestNodeMap 中的键作为新的索引列表
-			List<int> newLvSelecteds = new List<int>(speedtestNodeMap.Keys);
-			
-			// 更新 lvSelecteds，确保 createYamlConfig 使用正确的索引
-			lvSelecteds = newLvSelecteds;
-			
-			AppendText(notify: false, $"开始下载测速（共 {newLvSelecteds.Count} 个节点）...");
-			
-			config.index = 0;
-			if (config.DownloadThreadNum != 0)
-			{
-				AppendText(notify: false, "单线程模式仅支持多线程测速，请将线程数设置为0");
-				btnStartTest.Text = "一键自动测速";
-				return;
-			}
-			try
-			{
-				createYamlConfig();
-			}
-			catch (Exception ex3)
-			{
-				MessageBox.Show(ex3.Message, "出现异常");
-				return;
-			}
-			
-			// speedtestNodeMap 已经在上面更新了索引，不需要重新构建
-			
-			Task.Run(delegate
-			{
-				foreach (int lvSelected4 in newLvSelecteds)
-				{
-					// 使用 Invoke 确保在 UI 线程上更新
-					lvServers.Invoke((MethodInvoker)delegate
-					{
-						SetTestResult(lvSelected4, "等待测速线程...");
-					});
-				}
-			}).Wait();
-			SpeedtestHandler testSpeed = new SpeedtestHandler(ref config, ref cts, ref v2rayHandler, newLvSelecteds, UpdateSpeedtestHandler, UpdateMaxSpeedHandler, btStopTestStat, pid);
-			if (config.DownloadThreadNum == 0)
-			{
-				Thread thread3 = new Thread((ThreadStart)delegate
-				{
-					testSpeed.RunSpeedTest(token);
-				});
-				thread3.Start();
-				thread3.Join();
-			}
-			else
-			{
-				Thread thread4 = new Thread((ThreadStart)delegate
-				{
-					testSpeed.RunSpeedTest2(token);
-				});
-				thread4.Start();
-				thread4.Join();
-			}
-			RefreshServers();
-			if (!token.IsCancellationRequested)
-			{
-				// 按 HTTPS延迟 列排序
-				int httpsDelayColIndex = GetColumnIndexByName("HTTPS延迟");
-				if (httpsDelayColIndex >= 0)
-				{
-					// 不要修改 Tag，使用 SetSortIconByKey 来设置排序
-					string columnKey = lvServers.Columns[httpsDelayColIndex].Tag as string;
-					if (!string.IsNullOrEmpty(columnKey))
-					{
-						currentSortColumnKey = columnKey;
-						currentSortAscending = true; // 升序排序
-						lvServers_ColumnClick(null, new ColumnClickEventArgs(httpsDelayColIndex));
-					}
-				}
-				// 使用专门的方法删除下载测速失败的节点（只删除 speedtestNodeMap 中的节点）
-				Dictionary<string, int> dictionary2 = RemoveDownloadTestFailedServers();
-				int num2 = dictionary2.Values.Sum();
-				if (num2 > 0)
-				{
-					AppendText(notify: false, $"移除下载测速失败的节点：共 {num2} 个");
-					foreach (KeyValuePair<string, int> item4 in dictionary2)
-					{
-						AppendText(notify: false, $"  - {item4.Key}：{item4.Value} 个");
-					}
-				}
-				else
-				{
-					AppendText(notify: false, "移除下载测速失败的节点：0 个");
-				}
-				RefreshServers();
-				Thread.Sleep(200);
-				Dictionary<string, int> dictionary3 = RemoveLowSpeedServers();
-				int num3 = dictionary3.Values.Sum();
-				if (num3 > 0)
-				{
-					AppendText(notify: false, $"移除低速服务器（阈值：{tbLowSpeed.Text.Trim()} MB/s）：共 {num3} 个");
-					foreach (KeyValuePair<string, int> item5 in dictionary3)
-					{
-						AppendText(notify: false, $"  - {item5.Key}：{item5.Value} 个");
-					}
-				}
-				else
-				{
-					AppendText(notify: false, "移除低速服务器（阈值：" + tbLowSpeed.Text.Trim() + " MB/s）：0 个");
-				}
-				RefreshServers();
-			}
-		}
-		AppendText(notify: false, "自动测速完成！");
-		if (config.autoRemoveNoResultServer)
-		{
-			RemoveNoResultServers();
-			RefreshServers();
-		}
-		if (!token.IsCancellationRequested)
-		{
-			Invoke((Action)delegate
-			{
-				SortListView();
-			});
-		}
-		Invoke((Action)delegate
-		{
-			btnStartTest.Text = "一键自动测速";
-			if (!token.IsCancellationRequested)
-			{
-				if (config.autoSaveAfterTest)
-				{
-					ConfigHandler.SaveConfig(ref config, reload: false);
-				}
-				else if (MessageBox.Show(this, "是否保存当前测试结果？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
-				{
-					btnSaveConfig_Click(null, null);
-				}
-			}
-		});
-	}
-
-	public Dictionary<string, int> RemoveLowSpeedServers()
-	{
-		Dictionary<string, int> dictionary = new Dictionary<string, int>();
-		if (!double.TryParse(tbLowSpeed.Text.Trim(), out var result))
-		{
-			return dictionary;
-		}
-		List<int> list = new List<int>();
-		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
-		{
-			if (!lvServers.Items[num].SubItems.ContainsKey("testResult"))
-				continue;
-			string text = lvServers.Items[num].SubItems["testResult"].Text;
-			if (text.IndexOf("MB/s") != -1)
-			{
-				double num2 = Convert.ToDouble(text.Trim().Substring(0, text.Trim().Length - 5));
-				if (result > num2)
-				{
-					if (lvServers.Items[num].Tag != null)
-					{
-						int item = (int)lvServers.Items[num].Tag;
-						list.Add(item);
-					}
-					string key = ((num2 < 0.1) ? "速度 < 0.1 MB/s" : ((num2 < 0.5) ? "速度 0.1-0.5 MB/s" : ((!(num2 < 1.0)) ? $"速度 1.0-{result:F1} MB/s" : "速度 0.5-1.0 MB/s")));
-					if (dictionary.ContainsKey(key))
-					{
-						dictionary[key]++;
-					}
-					else
-					{
-						dictionary[key] = 1;
-					}
-				}
-			}
-		}
-		list.Sort((int a, int b) => b.CompareTo(a));
-		foreach (int item2 in list)
-		{
-			config.vmess.RemoveAt(item2);
-		}
-		return dictionary;
-	}
-
-	public string GetRealPingTime(string url, WebProxy webProxy, out int responseTime)
-	{
-		string result = string.Empty;
-		responseTime = -1;
-		try
-		{
-			HttpWebRequest obj = (HttpWebRequest)WebRequest.Create(url);
-			obj.Timeout = Convert.ToInt32(tbTimeout.Text.Trim()) * 1000;
-			obj.Proxy = webProxy;
-			Stopwatch stopwatch = new Stopwatch();
-			stopwatch.Start();
-			HttpWebResponse httpWebResponse = (HttpWebResponse)obj.GetResponse();
-			if (httpWebResponse.StatusCode != HttpStatusCode.OK && httpWebResponse.StatusCode != HttpStatusCode.NoContent)
-			{
-				result = httpWebResponse.StatusDescription;
-			}
-			stopwatch.Stop();
-			responseTime = stopwatch.Elapsed.Milliseconds;
-			httpWebResponse.Close();
-		}
-		catch (Exception ex)
-		{
-			result = ex.Message;
-		}
-		return result;
-	}
-
-	public string FormatOut(object time, string unit)
-	{
-		if (time.ToString().Equals("-1"))
-		{
-			return "Timeout";
-		}
-		return $"{time}{unit}";
-	}
-
-	public Dictionary<string, int> RemoveServer()
-	{
-		// 如果用户关闭了自动删除功能，直接返回空字典
-		if (!config.autoRemoveHttpsDelayFail)
-		{
-			return new Dictionary<string, int>();
-		}
-
-		// 确保在 UI 线程上执行
-		if (lvServers.InvokeRequired)
-		{
-			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveServer));
-		}
-
-		Dictionary<string, int> dictionary = new Dictionary<string, int>();
-		List<int> list = new List<int>();
-		for (int num = lvServers.Items.Count - 1; num >= 0; num--)
-		{
-			string text = null;
-			string text3 = lvServers.Items[num].SubItems.ContainsKey("httpsDelay") ? lvServers.Items[num].SubItems["httpsDelay"].Text : "";
-			string text4 = lvServers.Items[num].SubItems.ContainsKey("testResult") ? lvServers.Items[num].SubItems["testResult"].Text : "";
-			
-			// 检查是否为等待/测试中状态
-			bool httpsDelayPending = string.IsNullOrEmpty(text3) || text3 == "测速被取消" || text3 == "等待测速线程..." || text3 == "正在测速...";
-			bool testResultPending = string.IsNullOrEmpty(text4) || text4 == "等待测速线程..." || text4 == "测速被取消" || text4 == "正在测试...";
-			
-			// 检查测试是否失败
-			bool httpsDelayFailed = !httpsDelayPending && text3.IndexOf("ms") == -1;
-			bool testResultFailed = !testResultPending && text4.IndexOf("MB/s") == -1 && text4.IndexOf("KB/s") == -1;
-			
-			// 检查是否为请求被中止/取消的错误
-			bool testResultAborted = !testResultPending && (text4.Contains("请求被中止") || text4.Contains("请求已被取消") || text4.Contains("Aborted") || text4.Contains("Canceled"));
-			
-			if (config.strictExclusionMode)
-			{
-				// 严格模式：HTTPS延迟失败 或 下载测速失败，满足一个就删除
-				if (httpsDelayFailed)
-				{
-					text = "HTTPS延迟 测试失败";
-				}
-				else if (testResultFailed)
-				{
-					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接") && !text4.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
-				}
-			}
-			else
-			{
-				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
-				// 但如果下载测速明确失败（有错误信息），也应该删除
-				if (httpsDelayFailed && testResultFailed)
-				{
-					text = "HTTPS延迟和平均速度 均测试失败";
-				}
-				else if (httpsDelayFailed && testResultPending)
-				{
-					// HTTPS失败但下载测速未进行，视为失败
-					text = "HTTPS延迟 测试失败";
-				}
-				else if (testResultFailed)
-				{
-					// 下载测速失败（无论 HTTPS 延迟是否成功）
-					text = ((!text4.Contains("超时") && !text4.Contains("Timeout")) ? ((!text4.Contains("连接失败") && !text4.Contains("无法连接") && !text4.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
-				}
-				else if (testResultAborted)
-				{
-					// 请求被中止/取消的情况，视为失败
-					text = "平均速度测试请求被中止";
-				}
-			}
-			
-			if (text != null)
-			{
-				if (lvServers.Items[num].Tag != null)
-				{
-					int item = (int)lvServers.Items[num].Tag;
-					list.Add(item);
-				}
-				if (dictionary.ContainsKey(text))
-				{
-					dictionary[text]++;
-				}
-				else
-				{
-					dictionary[text] = 1;
-				}
-			}
-		}
-		list.Sort((int a, int b) => b.CompareTo(a));
-		foreach (int item2 in list)
-		{
-			config.vmess.RemoveAt(item2);
-		}
-		return dictionary;
-	}
-
-	/// <summary>
-	/// 移除 HTTPS 延迟测试失败的节点（用于 HTTPS 测速后、下载测速前）
-	/// 只删除 speedtestNodeMap 中 HTTPS 延迟测试失败的节点
-	/// </summary>
-	public Dictionary<string, int> RemoveHttpsDelayFailedServers()
-	{
-		// 如果用户关闭了自动删除功能，直接返回空字典
-		if (!config.autoRemoveHttpsDelayFail)
-		{
-			return new Dictionary<string, int>();
-		}
-
-		// 确保在 UI 线程上执行
-		if (lvServers.InvokeRequired)
-		{
-			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveHttpsDelayFailedServers));
-		}
-		
-		Dictionary<string, int> dictionary = new Dictionary<string, int>();
-		List<int> list = new List<int>();
-		
-		// 只检查 speedtestNodeMap 中的节点
-		foreach (var kvp in speedtestNodeMap)
-		{
-			int vmessIndex = kvp.Key;
-			VmessItem vmessItem = kvp.Value;
-			
-			// 检查节点是否还存在于 config.vmess 中
-			if (vmessIndex < 0 || vmessIndex >= config.vmess.Count)
-				continue;
-			
-			// 检查是否是同一个节点（防止索引错位）
-			var currentItem = config.vmess[vmessIndex];
-			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
-				continue;
-			
-			// 使用 currentItem 获取最新的测试结果
-			string httpsDelay = currentItem.httpsDelay ?? "";
-			
-			// 检查是否为等待/测试中状态
-			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
-			
-			// 检查 HTTPS 延迟测试是否失败（不包含 "ms" 表示失败）
-			bool httpsDelayFailed = !httpsDelayPending && httpsDelay.IndexOf("ms") == -1;
-			
-			if (httpsDelayFailed)
-			{
-				string text = httpsDelay.Contains("超时") || httpsDelay.Contains("Timeout") ? "HTTPS延迟 超时" :
-				       httpsDelay.Contains("无法连接") ? "HTTPS延迟 无法连接" : "HTTPS延迟 测试失败";
-				
-				list.Add(vmessIndex);
-				
-				if (dictionary.ContainsKey(text))
-				{
-					dictionary[text]++;
-				}
-				else
-				{
-					dictionary[text] = 1;
-				}
-			}
-		}
-		
-		// 从大到小排序，确保删除时索引不会错位
-		list.Sort((int a, int b) => b.CompareTo(a));
-		foreach (int item in list)
-		{
-			if (item >= 0 && item < config.vmess.Count)
-			{
-				config.vmess.RemoveAt(item);
-			}
-		}
-		
-		// 删除节点后，需要重建 speedtestNodeMap，因为索引已经改变
-		// 保留未删除节点的对象引用，并更新它们的新索引
-		Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
-		foreach (var kvp in speedtestNodeMap)
-		{
-			int oldIndex = kvp.Key;
-			VmessItem vmessItem = kvp.Value;
-			
-			// 如果这个节点被删除了，跳过
-			if (list.Contains(oldIndex))
-				continue;
-			
-			// 在 config.vmess 中查找这个节点的新索引（通过对象引用）
-			for (int i = 0; i < config.vmess.Count; i++)
-			{
-				if (config.vmess[i] == vmessItem)
-				{
-					newSpeedtestNodeMap[i] = vmessItem;
-					break;
-				}
-			}
-		}
-		
-		speedtestNodeMap = newSpeedtestNodeMap;
-		
-		return dictionary;
-	}
-
-	/// <summary>
-	/// 移除下载测速失败的节点（用于下载测速后）
-	/// 只删除 speedtestNodeMap 中下载测速失败的节点
-	/// </summary>
-	public Dictionary<string, int> RemoveDownloadTestFailedServers()
-	{
-		// 确保在 UI 线程上执行
-		if (lvServers.InvokeRequired)
-		{
-			return (Dictionary<string, int>)lvServers.Invoke(new Func<Dictionary<string, int>>(RemoveDownloadTestFailedServers));
-		}
-		
-		Dictionary<string, int> dictionary = new Dictionary<string, int>();
-		List<int> list = new List<int>();
-		
-		// 只检查 speedtestNodeMap 中的节点
-		foreach (var kvp in speedtestNodeMap)
-		{
-			int vmessIndex = kvp.Key;
-			VmessItem vmessItem = kvp.Value;
-			
-			// 检查节点是否还存在于 config.vmess 中
-			if (vmessIndex < 0 || vmessIndex >= config.vmess.Count)
-				continue;
-			
-			// 检查是否是同一个节点（防止索引错位）
-			var currentItem = config.vmess[vmessIndex];
-			if (currentItem.address != vmessItem.address || currentItem.port != vmessItem.port)
-				continue;
-			
-			// 使用 currentItem 获取最新的测试结果
-			string httpsDelay = currentItem.httpsDelay ?? "";
-			string testResult = currentItem.testResult ?? "";
-			
-			// 检查是否为等待/测试中状态
-			bool httpsDelayPending = string.IsNullOrEmpty(httpsDelay) || httpsDelay == "测速被取消" || httpsDelay == "等待测速线程..." || httpsDelay == "正在测速...";
-			bool testResultPending = string.IsNullOrEmpty(testResult) || testResult == "等待测速线程..." || testResult == "测速被取消" || testResult == "正在测试...";
-			
-			// 检查测试是否失败
-			bool httpsDelayFailed = !httpsDelayPending && httpsDelay.IndexOf("ms") == -1;
-			bool testResultFailed = !testResultPending && testResult.IndexOf("MB/s") == -1 && testResult.IndexOf("KB/s") == -1;
-			
-			// 检查是否为请求被中止/取消的错误
-			bool testResultAborted = !testResultPending && (testResult.Contains("请求被中止") || testResult.Contains("请求已被取消") || testResult.Contains("Aborted") || testResult.Contains("Canceled"));
-			
-			string text = null;
-			
-			if (config.strictExclusionMode)
-			{
-				// 严格模式：HTTPS延迟失败 或 下载测速失败，满足一个就删除
-				if (httpsDelayFailed)
-				{
-					text = "HTTPS延迟 测试失败";
-				}
-				else if (testResultFailed)
-				{
-					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接") && !testResult.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
-				}
-			}
-			else
-			{
-				// 非严格模式：HTTPS延迟失败 且 下载测速也失败才删除
-				// 但如果下载测速明确失败（有错误信息），也应该删除
-				if (httpsDelayFailed && testResultFailed)
-				{
-					text = "HTTPS延迟和平均速度 均测试失败";
-				}
-				else if (httpsDelayFailed && testResultPending)
-				{
-					// HTTPS失败但下载测速未进行，视为失败
-					text = "HTTPS延迟 测试失败";
-				}
-				else if (testResultFailed)
-				{
-					// 下载测速失败（无论 HTTPS 延迟是否成功）
-					text = ((!testResult.Contains("超时") && !testResult.Contains("Timeout")) ? ((!testResult.Contains("连接失败") && !testResult.Contains("无法连接") && !testResult.Contains("基础连接")) ? "平均速度测试失败" : "平均速度测试连接失败") : "平均速度测试超时");
-				}
-				else if (testResultAborted)
-				{
-					// 请求被中止/取消的情况，视为失败
-					text = "平均速度测试请求被中止";
-				}
-			}
-			
-			if (text != null)
-			{
-				list.Add(vmessIndex);
-				
-				if (dictionary.ContainsKey(text))
-				{
-					dictionary[text]++;
-				}
-				else
-				{
-					dictionary[text] = 1;
-				}
-			}
-		}
-		
-		// 从大到小排序，确保删除时索引不会错位
-		list.Sort((int a, int b) => b.CompareTo(a));
-		foreach (int item in list)
-		{
-			if (item >= 0 && item < config.vmess.Count)
-			{
-				config.vmess.RemoveAt(item);
-			}
-		}
-		
-		// 删除节点后，需要重建 speedtestNodeMap，因为索引已经改变
-		// 保留未删除节点的对象引用，并更新它们的新索引
-		Dictionary<int, VmessItem> newSpeedtestNodeMap = new Dictionary<int, VmessItem>();
-		foreach (var kvp in speedtestNodeMap)
-		{
-			int oldIndex = kvp.Key;
-			VmessItem vmessItem = kvp.Value;
-			
-			// 如果这个节点被删除了，跳过
-			if (list.Contains(oldIndex))
-				continue;
-			
-			// 在 config.vmess 中查找这个节点的新索引（通过对象引用）
-			for (int i = 0; i < config.vmess.Count; i++)
-			{
-				if (config.vmess[i] == vmessItem)
-				{
-					newSpeedtestNodeMap[i] = vmessItem;
-					break;
-				}
-			}
-		}
-		
-		speedtestNodeMap = newSpeedtestNodeMap;
-		
-		return dictionary;
-	}
-
-	private void menuRemoveLowServer_Click(object sender, EventArgs e)
-	{
-		if (MessageBox.Show("是否移除速度低于 " + tbLowSpeed.Text + "M/s 的节点?", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
-		{
-			return;
-		}
-		Dictionary<string, int> dictionary = RemoveLowSpeedServers();
-		int num = dictionary.Values.Sum();
-		if (num > 0)
-		{
-			AppendText(notify: false, $"移除低速服务器（阈值：{tbLowSpeed.Text.Trim()} MB/s）：共 {num} 个");
-			foreach (KeyValuePair<string, int> item in dictionary)
-			{
-				AppendText(notify: false, $"  - {item.Key}：{item.Value} 个");
-			}
-			ConfigHandler.SaveConfig(ref config, reload: false);
-		}
-		else
-		{
-			AppendText(notify: false, "移除低速服务器（阈值：" + tbLowSpeed.Text.Trim() + " MB/s）：0 个");
-		}
-		RefreshServers();
-	}
-
-	private void menuRemoveLoseServer_Click(object sender, EventArgs e)
-	{
-		Dictionary<string, int> dictionary = RemoveServer();
-		int num = dictionary.Values.Sum();
-		if (num > 0)
-		{
-			AppendText(notify: false, $"移除无效服务器：共 {num} 个");
-			foreach (KeyValuePair<string, int> item in dictionary)
-			{
-				AppendText(notify: false, $"  - {item.Key}：{item.Value} 个");
-			}
-			ConfigHandler.SaveConfig(ref config, reload: false);
-		}
-		else
-		{
-			AppendText(notify: false, "移除无效服务器：0 个");
-		}
-		RefreshServers();
-	}
-
-	private void menuRemoveNoResultServer_Click(object sender, EventArgs e)
-	{
-		if (RemoveNoResultServers() > 0)
-		{
-			ConfigHandler.SaveConfig(ref config, reload: false);
-		}
-		RefreshServers();
-	}
-
-	public int RemoveNoResultServers()
-	{
-		int num = 0;
-		for (int num2 = config.vmess.Count - 1; num2 >= 0; num2--)
-		{
-			if (string.IsNullOrWhiteSpace(config.vmess[num2].testResult))
-			{
-				config.vmess.RemoveAt(num2);
-				num++;
-			}
-		}
-		if (num > 0)
-		{
-			AppendText(notify: false, $"移除无结果节点：共 {num} 个");
-		}
-		else
-		{
-			AppendText(notify: false, "移除无结果节点：0 个");
-		}
-		return num;
-	}
-
-	private void tbTimeout_Leave(object sender, EventArgs e)
-	{
-		config.Timeout = tbTimeout.Text;
-	}
-
-	private void tbLowSpeed_TextChanged(object sender, EventArgs e)
-	{
-		config.LowSpeed = tbLowSpeed.Text.Trim();
-	}
-
-	private void tbPingNum_TextChanged(object sender, EventArgs e)
-	{
-		config.PingNum = tbPingNum.Text.Trim();
+		config.PingCount = tbPingCount.Text.Trim();
 	}
 
 	private void tbTimeout_TextChanged(object sender, EventArgs e)
 	{
 		config.Timeout = tbTimeout.Text.Trim();
+	}
+
+	private void tbSpeedUrl_TextChanged(object sender, EventArgs e)
+	{
+		config.speedTestUrl = tbSpeedUrl.Text.Trim();
+	}
+
+	private void tbDownloadThread_TextChanged(object sender, EventArgs e)
+	{
+		config.DownloadThread = tbDownloadThread.Text.Trim();
+	}
+
+	private void tbDownloadMaxTime_TextChanged(object sender, EventArgs e)
+	{
+		config.DownloadMaxTime = tbDownloadMaxTime.Text.Trim();
 	}
 
 	private void tbKeywordFilter_TextChanged(object sender, EventArgs e)
@@ -3569,6 +2590,10 @@ public class MainForm : Form
 		if (tabSubscriptions.SelectedTab != null)
 		{
 			currentSubFilter = tabSubscriptions.SelectedTab.Tag as string;
+			if (config?.uiItem != null)
+			{
+				config.uiItem.selectedSubId = currentSubFilter ?? "__all__";
+			}
 			RefreshServersView();
 		}
 	}
@@ -3717,14 +2742,15 @@ public class MainForm : Form
 			if (lvSelected >= 0 && lvSelected < config.vmess.Count)
 			{
 				VmessItem vmessItem = config.vmess[lvSelected];
-				// VLESS Reality 节点单独处理
-				bool isVlessReality = vmessItem.configType == 5 && 
-					(vmessItem.streamSecurity == "reality" || 
-					 !string.IsNullOrEmpty(vmessItem.publicKey) || 
-					 !string.IsNullOrEmpty(vmessItem.shortId));
-				if (isVlessReality)
+				// VLESS 节点全部单独处理（绕过 subconverter）
+				if (vmessItem.configType == 5)
 				{
-					listVlessReality.Add(vmessItem);
+					bool isBrokenReality = vmessItem.streamSecurity == "reality" && 
+						(string.IsNullOrEmpty(vmessItem.publicKey) || string.IsNullOrEmpty(vmessItem.shortId));
+					if (!isBrokenReality)
+					{
+						listVlessReality.Add(vmessItem);
+					}
 					continue;
 				}
 				// AnyTLS 节点单独处理
@@ -3785,6 +2811,7 @@ public class MainForm : Form
 				yamlContent = InsertAnyTLSToYaml(yamlContent, listAnyTLS);
 			}
 			
+			yamlContent = EnsureUnifiedDelayInYaml(yamlContent);
 			File.WriteAllText(path2, yamlContent, Encoding.UTF8);
 			AppendText(notify: false, "保存文件成功");
 		}
@@ -3807,167 +2834,46 @@ public class MainForm : Form
 		}
 	}
 
-	private void menuStartClash_Click(object sender, EventArgs e)
-	{
-		GetLvSelectedIndex();
-		if (!ConfigHandler.TcpClientCheck("127.0.0.1", config.externalControllerPort))
-		{
-			MessageBox.Show("Mihomo外部控制端口没有开启，请确认端口是否正确！建议重新打开测速软件");
-			return;
-		}
-		if (!ConfigHandler.TcpClientCheck("127.0.0.1", 25500))
-		{
-			MessageBox.Show($"无法连接到Subconverter(端口:{25500})，请确认是否启动！建议重新打开测速软件");
-			return;
-		}
-		StringBuilder stringBuilder = new StringBuilder();
-		List<VmessItem> listVlessReality = new List<VmessItem>();
-		List<VmessItem> listAnyTLS = new List<VmessItem>();
-		foreach (int lvSelected in lvSelecteds)
-		{
-			if (lvSelected >= 0 && lvSelected < config.vmess.Count)
-			{
-				VmessItem vmessItem = config.vmess[lvSelected];
-				// VLESS Reality 节点单独处理
-				bool isVlessReality = vmessItem.configType == 5 && 
-					(vmessItem.streamSecurity == "reality" || 
-					 !string.IsNullOrEmpty(vmessItem.publicKey) || 
-					 !string.IsNullOrEmpty(vmessItem.shortId));
-				if (isVlessReality)
-				{
-					listVlessReality.Add(vmessItem);
-					continue;
-				}
-				// AnyTLS 节点单独处理
-				if (vmessItem.configType == 12)
-				{
-					listAnyTLS.Add(vmessItem);
-					continue;
-				}
-			}
-			string shareUrl = ShareHandler.GetShareUrl(config, lvSelected);
-			if (!Utils.IsNullOrEmpty(shareUrl))
-			{
-				stringBuilder.Append(shareUrl);
-				stringBuilder.AppendLine();
-			}
-		}
-		if (stringBuilder.Length <= 0 && listVlessReality.Count == 0 && listAnyTLS.Count == 0)
-		{
-			return;
-		}
-		string text = Guid.NewGuid().ToString("N");
-		string path = Utils.GetPath("subconverter\\temp_" + text + ".txt");
-		try
-		{
-			string path2 = Utils.GetPath("config\\temp.yaml");
-			string yamlContent = "";
-			
-			if (stringBuilder.Length > 0)
-			{
-				stringBuilder.Insert(0, "ss://YWVzLTI1Ni1nY206ZmFCQW9ENTRrODdVSkc3QDEuMS4xLjE6NjY2#%e5%8d%a0%e4%bd%8d%e8%8a%82%e7%82%b9" + Environment.NewLine);
-				File.WriteAllText(path, Utils.Base64Encode(stringBuilder.ToString()), Encoding.UTF8);
-				HttpWebRequest obj = (HttpWebRequest)WebRequest.Create($"http://127.0.0.1:{25500}/sub?target=clash&url=temp_{text}.txt&insert=false");
-				obj.Method = "GET";
-				obj.Timeout = 10000;
-				obj.ReadWriteTimeout = 10000;
-				obj.ContinueTimeout = 10000;
-				using (StreamReader streamReader = new StreamReader(obj.GetResponse().GetResponseStream(), Encoding.UTF8))
-				{
-					yamlContent = streamReader.ReadToEnd();
-				}
-			}
-			else
-			{
-				yamlContent = "mixed-port: 7890\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: 127.0.0.1:" + config.externalControllerPort + "\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
-			}
-			
-			// 插入 VLESS Reality 节点
-			if (listVlessReality.Count > 0)
-			{
-				yamlContent = InsertVlessRealityToYaml(yamlContent, listVlessReality);
-			}
-			
-			// 插入 AnyTLS 节点
-			if (listAnyTLS.Count > 0)
-			{
-				yamlContent = InsertAnyTLSToYaml(yamlContent, listAnyTLS);
-			}
-			
-			File.WriteAllText(path2, yamlContent, Encoding.UTF8);
-			AppendText(notify: false, "Mihomo配置文件生成成功，正在推送配置文件到Mihomo内核...");
-			
-			string args = JsonConvert.SerializeObject(new
-			{
-				path = Path.GetFullPath(path2).Replace("\\", "/")
-			}, Formatting.None);
-			string uri = "http://127.0.0.1:" + config.externalControllerPort + "/configs";
-			if (ConfigHandler.sendReq(args, uri, "PUT") != "204")
-			{
-				AppendText(notify: false, "切换YAML配置文件失败，请确认Mihomo是否启动");
-			}
-			else
-			{
-				AppendText(notify: false, "节点推送到Mihomo内核成功！");
-			}
-		}
-		catch (Exception ex)
-		{
-			AppendText(notify: false, "切换YAML配置文件失败，返回异常：" + ex.Message);
-		}
-		finally
-		{
-			try
-			{
-				if (File.Exists(path))
-				{
-					File.Delete(path);
-				}
-			}
-			catch
-			{
-			}
-		}
-	}
-	
 	/// <summary>
-	/// 生成 VLESS Reality 节点的 Mihomo YAML 配置并插入到现有配置中
+	/// 生成单个 VLESS 节点的 Mihomo YAML 配置（支持 TCP/WS/gRPC/H2 + TLS/Reality/None）
 	/// </summary>
-	private string InsertVlessRealityToYaml(string yamlContent, List<VmessItem> listVlessReality)
+	private static void AppendVlessNodeYaml(StringBuilder sbProxies, StringBuilder sbProxyNames, VmessItem item, string proxyName)
 	{
-		StringBuilder sbProxies = new StringBuilder();
-		StringBuilder sbProxyNames = new StringBuilder();
-		
-		for (int i = 0; i < listVlessReality.Count; i++)
+		string network = string.IsNullOrEmpty(item.network) ? "tcp" : item.network.ToLower();
+		bool isReality = item.streamSecurity == "reality" || !string.IsNullOrEmpty(item.publicKey);
+		bool isTls = isReality || item.streamSecurity == "tls" || item.streamSecurity == "xtls";
+		bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
+
+		sbProxies.AppendLine("  - name: \"" + proxyName + "\"");
+		sbProxies.AppendLine("    type: vless");
+		sbProxies.AppendLine("    server: " + item.address);
+		sbProxies.AppendLine($"    port: {item.port}");
+		sbProxies.AppendLine("    uuid: \"" + item.id + "\"");
+		sbProxies.AppendLine("    network: " + network);
+		sbProxies.AppendLine("    tls: " + isTls.ToString().ToLower());
+		sbProxies.AppendLine("    udp: true");
+
+		if (!string.IsNullOrEmpty(item.flow))
 		{
-			VmessItem item = listVlessReality[i];
-			string proxyName = string.IsNullOrEmpty(item.remarks) ? $"vless-reality-{i}" : item.remarks;
-			bool skipCertVerify = item.allowInsecure == "true" || item.allowInsecure == "1";
-			
-			sbProxies.AppendLine("  - name: \"" + proxyName + "\"");
-			sbProxies.AppendLine("    type: vless");
-			sbProxies.AppendLine("    server: " + item.address);
-			sbProxies.AppendLine($"    port: {item.port}");
-			sbProxies.AppendLine("    uuid: \"" + item.id + "\"");
-			sbProxies.AppendLine("    network: " + (string.IsNullOrEmpty(item.network) ? "tcp" : item.network));
-			sbProxies.AppendLine("    tls: true");
-			sbProxies.AppendLine("    udp: true");
-			
-			if (!string.IsNullOrEmpty(item.flow))
-			{
-				sbProxies.AppendLine("    flow: " + item.flow);
-			}
-			
+			sbProxies.AppendLine("    flow: " + item.flow);
+		}
+
+		if (isTls)
+		{
 			string fingerprint = string.IsNullOrEmpty(item.fingerprint) ? "chrome" : item.fingerprint;
 			sbProxies.AppendLine("    client-fingerprint: " + fingerprint);
-			
-			if (!string.IsNullOrEmpty(item.sni))
+
+			string servername = !string.IsNullOrEmpty(item.sni) ? item.sni : item.requestHost;
+			if (!string.IsNullOrEmpty(servername))
 			{
-				sbProxies.AppendLine("    servername: " + item.sni);
+				sbProxies.AppendLine("    servername: " + servername);
 			}
-			
+
 			sbProxies.AppendLine("    skip-cert-verify: " + skipCertVerify.ToString().ToLower());
-			
+		}
+
+		if (isReality)
+		{
 			sbProxies.AppendLine("    reality-opts:");
 			if (!string.IsNullOrEmpty(item.publicKey))
 			{
@@ -3975,10 +2881,60 @@ public class MainForm : Form
 			}
 			if (!string.IsNullOrEmpty(item.shortId))
 			{
-				sbProxies.AppendLine("      short-id: " + item.shortId);
+				sbProxies.AppendLine("      short-id: \"" + item.shortId + "\"");
 			}
-			
-			sbProxyNames.AppendLine("      - \"" + proxyName + "\"");
+		}
+
+		if (network == "ws")
+		{
+			sbProxies.AppendLine("    ws-opts:");
+			string wsPath = string.IsNullOrEmpty(item.path) ? "/" : item.path;
+			sbProxies.AppendLine("      path: \"" + wsPath + "\"");
+			string wsHost = !string.IsNullOrEmpty(item.requestHost) ? item.requestHost : item.sni;
+			if (!string.IsNullOrEmpty(wsHost))
+			{
+				sbProxies.AppendLine("      headers:");
+				sbProxies.AppendLine("        Host: \"" + wsHost + "\"");
+			}
+		}
+		else if (network == "grpc")
+		{
+			if (!string.IsNullOrEmpty(item.path))
+			{
+				sbProxies.AppendLine("    grpc-opts:");
+				sbProxies.AppendLine("      grpc-service-name: \"" + item.path + "\"");
+			}
+		}
+		else if (network == "h2" || network == "http")
+		{
+			sbProxies.AppendLine("    h2-opts:");
+			if (!string.IsNullOrEmpty(item.path))
+			{
+				sbProxies.AppendLine("      path:");
+				sbProxies.AppendLine("        - \"" + item.path + "\"");
+			}
+		}
+
+		sbProxyNames.AppendLine("      - \"" + proxyName + "\"");
+	}
+
+	/// <summary>
+	/// 生成 VLESS 节点的 Mihomo YAML 配置并插入到现有配置中
+	/// </summary>
+	private string InsertVlessRealityToYaml(string yamlContent, List<VmessItem> listVlessReality)
+	{
+		if (yamlContent.Contains("proxies: ~"))
+		{
+			yamlContent = yamlContent.Replace("proxies: ~", "proxies:");
+		}
+		StringBuilder sbProxies = new StringBuilder();
+		StringBuilder sbProxyNames = new StringBuilder();
+		
+		for (int i = 0; i < listVlessReality.Count; i++)
+		{
+			VmessItem item = listVlessReality[i];
+			string proxyName = string.IsNullOrEmpty(item.remarks) ? $"vless-{i}" : item.remarks;
+			AppendVlessNodeYaml(sbProxies, sbProxyNames, item, proxyName);
 		}
 		
 		int num = yamlContent.IndexOf("proxies:");
@@ -4050,146 +3006,28 @@ public class MainForm : Form
 		return yamlContent;
 	}
 
-	private void tbClashPort_TextChanged(object sender, EventArgs e)
-	{
-		config.ClashPort = tbClashPort.Text.Trim();
-	}
-
-	private void cbFastMode_CheckedChanged(object sender, EventArgs e)
-	{
-		config.fastMode = cbFastMode.Checked;
-		tb_fm_second.Enabled = config.fastMode;
-		tb_fm_max.Enabled = config.fastMode;
-		tb_fm_ave.Enabled = config.fastMode;
-		if (config.fastMode)
-		{
-			MessageBox.Show("快速模式在测下载速度时：如果" + tb_fm_second.Text + "秒内峰值速度没有达到" + tb_fm_max.Text + "MB/s，或者下载进度没有超过" + tb_fm_ave.Text + "%，则取消当前节点测速", "提示", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-		}
-	}
-
-	private void tb_fm_ave_TextChanged(object sender, EventArgs e)
-	{
-		config.FMave = tb_fm_ave.Text.Trim();
-	}
-
-	private void tb_fm_max_TextChanged(object sender, EventArgs e)
-	{
-		config.FMmax = tb_fm_max.Text.Trim();
-	}
-
-	private void tb_fm_second_TextChanged(object sender, EventArgs e)
-	{
-		config.FMSecond = tb_fm_second.Text.Trim();
-	}
-
-	private void cbSpeedTest_CheckedChanged(object sender, EventArgs e)
-	{
-		config.speedAble = cbSpeedTest.Checked;
-	}
-
-	private void cbRealPing_CheckedChanged(object sender, EventArgs e)
-	{
-		TextBox textBox = tbPingNum;
-		bool flag = (config.pingAble = cbRealPing.Checked);
-		bool enabled = flag;
-		textBox.Enabled = enabled;
-	}
-
-	private void cbAutoSort_CheckedChanged(object sender, EventArgs e)
-	{
-		bool flag = cbAutoSort.Checked;
-		config.autoSortEnabled = flag;
-		cmbSortColumn.Enabled = flag;
-		cmbSortOrder.Enabled = flag;
-	}
-
-	private void cmbSortColumn_SelectedIndexChanged(object sender, EventArgs e)
-	{
-		if (config != null)
-		{
-			config.autoSortColumn = cmbSortColumn.SelectedIndex;
-		}
-	}
-
-	private void cmbSortOrder_SelectedIndexChanged(object sender, EventArgs e)
-	{
-		if (config != null)
-		{
-			config.autoSortOrder = cmbSortOrder.SelectedIndex;
-		}
-	}
-
-	private void cbStrictMode_CheckedChanged(object sender, EventArgs e)
-	{
-		config.strictExclusionMode = cbStrictMode.Checked;
-	}
-
-	private void cbAutoSave_CheckedChanged(object sender, EventArgs e)
-	{
-		config.autoSaveAfterTest = cbAutoSave.Checked;
-	}
-
 	private void SortListView()
 	{
-		if (!cbAutoSort.Checked || cmbSortColumn.SelectedIndex < 0 || cmbSortOrder.SelectedIndex < 0)
+		if (string.IsNullOrEmpty(currentSortColumnKey))
 		{
 			return;
 		}
-		EServerColName name = cmbSortColumn.SelectedIndex switch
+		EServerColName name = GetServerColNameByKey(currentSortColumnKey);
+		if (name == EServerColName.def)
 		{
-			0 => EServerColName.testResult, 
-			1 => EServerColName.MaxSpeed, 
-			2 => EServerColName.httpsDelay, 
-			3 => EServerColName.lastTestTime, 
-			_ => EServerColName.testResult, 
-		};
-		string columnKey = cmbSortColumn.SelectedIndex switch
-		{
-			0 => "testResult",
-			1 => "MaxSpeed",
-			2 => "httpsDelay",
-			3 => "lastTestTime",
-			_ => "testResult",
-		};
-		bool flag = cmbSortOrder.SelectedIndex == 1;
+			return;
+		}
 		try
 		{
-			ConfigHandler.SortServers(ref config, name, flag);
-			RefreshServers();
-			SetSortIconByKey(columnKey, flag);
-			currentSortColumnKey = columnKey;
-			currentSortAscending = flag;
-			AppendText(notify: false, "自动排序完成：按 " + cmbSortColumn.Text + " " + cmbSortOrder.Text);
+			if (ConfigHandler.SortServers(ref config, name, currentSortAscending) == 0)
+			{
+				RefreshServers();
+				SetSortIconByKey(currentSortColumnKey, currentSortAscending);
+			}
 		}
 		catch (Exception ex)
 		{
 			AppendText(notify: false, "排序失败：" + ex.Message);
-		}
-	}
-
-	private double GetSortValue(ListViewItem item, int columnIndex)
-	{
-		if (columnIndex < 0 || item.SubItems.Count <= columnIndex)
-		{
-			return double.MaxValue;
-		}
-		string text = item.SubItems[columnIndex].Text;
-		if (string.IsNullOrEmpty(text) || text == "-" || text == "")
-		{
-			return double.MaxValue;
-		}
-		try
-		{
-			string text2 = Regex.Replace(text, "[^\\d.-]", "");
-			if (string.IsNullOrEmpty(text2))
-			{
-				return double.MaxValue;
-			}
-			return double.Parse(text2);
-		}
-		catch
-		{
-			return double.MaxValue;
 		}
 	}
 
@@ -4218,6 +3056,7 @@ public class MainForm : Form
 		if (num > 0)
 		{
 			RefreshServers();
+			ConfigHandler.ToJsonFile(config);
 			AppendText(notify: false, $"成功从文件中导入{num}个节点");
 		}
 		else
@@ -4226,14 +3065,9 @@ public class MainForm : Form
 		}
 	}
 
-	private void tbThread_TextChanged(object sender, EventArgs e)
-	{
-		config.Thread = tbThread.Text.Trim();
-	}
-
 	private void button1_Click_1(object sender, EventArgs e)
 	{
-		contextMenuStrip1.Show(button1, 0, 0);
+		new SubSettingForm().ShowDialog();
 	}
 
 	private void 导入到节点列表ToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4253,95 +3087,17 @@ public class MainForm : Form
 		aboutForm.ShowDialog();
 	}
 
-	private void btnSettings_Click(object sender, EventArgs e)
-	{
-		if (new SettingsForm(config)
-		{
-			Owner = this
-		}.ShowDialog() == DialogResult.OK)
-		{
-			// 重新初始化列表视图以应用列可见性设置
-			ReinitializeServersView();
-			AppendText(notify: false, "设置已生效（需手动保存配置）");
-		}
-	}
-
-	private void ReinitializeServersView()
-	{
-		lvServers.BeginUpdate();
-		lvServers.Columns.Clear();
-		lvServers.Items.Clear();
-		lvServers.EndUpdate();
-		// 重新获取列顺序
-		currentColumnOrder = null;
-		InitServersView();
-		RefreshServers();
-	}
-
-	private void UpdateLastTestTimeColumnVisibility()
-	{
-		lvServers.BeginUpdate();
-		bool hasLastTestTimeColumn = false;
-		for (int i = 0; i < lvServers.Columns.Count; i++)
-		{
-			if (lvServers.Columns[i].Text == "最后测速")
-			{
-				hasLastTestTimeColumn = true;
-				break;
-			}
-		}
-		
-		if (config.recordTestTime && IsColumnVisible("lastTestTime"))
-		{
-			if (!hasLastTestTimeColumn)
-			{
-				var col = lvServers.Columns.Add("最后测速", GetVisibleColumnWidth("lastTestTime", 130), HorizontalAlignment.Center);
-				col.Tag = "lastTestTime";
-				RefreshServers();
-			}
-			if (!cmbSortColumn.Items.Contains("最后测速"))
-			{
-				cmbSortColumn.Items.Add("最后测速");
-			}
-		}
-		else
-		{
-			if (hasLastTestTimeColumn)
-			{
-				for (int i = lvServers.Columns.Count - 1; i >= 0; i--)
-				{
-					if (lvServers.Columns[i].Text == "最后测速")
-					{
-						lvServers.Columns.RemoveAt(i);
-						break;
-					}
-				}
-				RefreshServers();
-			}
-			if (cmbSortColumn.Items.Contains("最后测速"))
-			{
-				if (cmbSortColumn.SelectedItem?.ToString() == "最后测速")
-				{
-					cmbSortColumn.SelectedIndex = 0;
-				}
-				cmbSortColumn.Items.Remove("最后测速");
-			}
-		}
-		lvServers.EndUpdate();
-	}
-
 	private void MainForm_ResizeEnd(object sender, EventArgs e)
 	{
-		config.uiItem.mainSize = base.Size;
+		if (base.WindowState == FormWindowState.Normal)
+		{
+			config.uiItem.mainSize = base.Size;
+			config.uiItem.mainLocation = base.Location;
+		}
 	}
 
 	protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 	{
-		if (keyData == (Keys.S | Keys.Control))
-		{
-			btnSaveConfig_Click(null, null);
-			return true;
-		}
 		return base.ProcessCmdKey(ref msg, keyData);
 	}
 
@@ -4379,7 +3135,6 @@ public class MainForm : Form
 		this.cmsLv = new System.Windows.Forms.ContextMenuStrip(this.components);
 		this.menuRealPingServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuDownLoadServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuAutoTestSelected = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuAddServers = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
@@ -4387,63 +3142,42 @@ public class MainForm : Form
 		this.menuEditServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuRemoveServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuRemoveDuplicateServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuRemoveLoseServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuRemoveLowServer = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuRemoveNoResultServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuExport2ShareUrl = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuExport2SubContent = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator6 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuExport2Base64 = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuExport2Clash = new System.Windows.Forms.ToolStripMenuItem();
-		this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
-		this.menuStartClash = new System.Windows.Forms.ToolStripMenuItem();
 		this.panel2 = new System.Windows.Forms.Panel();
 		this.groupBox1 = new System.Windows.Forms.GroupBox();
 		this.txtMsgBox = new System.Windows.Forms.TextBox();
 		this.panel1 = new System.Windows.Forms.Panel();
 		this.groupBox3 = new System.Windows.Forms.GroupBox();
 		this.groupBox5 = new System.Windows.Forms.Panel();
+		this.lblDelayUrl = new System.Windows.Forms.Label();
+		this.tbDelayUrl = new System.Windows.Forms.TextBox();
+		this.lblPingCount = new System.Windows.Forms.Label();
+		this.tbPingCount = new System.Windows.Forms.TextBox();
+		this.label4 = new System.Windows.Forms.Label();
+		this.tbTimeout = new System.Windows.Forms.TextBox();
+		this.btnTestDelay = new System.Windows.Forms.Button();
+		this.lblSpeedUrl = new System.Windows.Forms.Label();
+		this.tbSpeedUrl = new System.Windows.Forms.TextBox();
+		this.lblDownloadThread = new System.Windows.Forms.Label();
+		this.tbDownloadThread = new System.Windows.Forms.TextBox();
+		this.lblDownloadMaxTime = new System.Windows.Forms.Label();
+		this.tbDownloadMaxTime = new System.Windows.Forms.TextBox();
+		this.btnTestSpeed = new System.Windows.Forms.Button();
 		this.btnClearResult = new System.Windows.Forms.Button();
 		this.btnClearLog = new System.Windows.Forms.Button();
-		this.btnSaveConfig = new System.Windows.Forms.Button();
-		this.label10 = new System.Windows.Forms.Label();
-		this.btnStartTest = new System.Windows.Forms.Button();
-		this.cbAutoSort = new System.Windows.Forms.CheckBox();
-		this.label15 = new System.Windows.Forms.Label();
 		this.button2 = new System.Windows.Forms.Button();
-		this.tbLowSpeed = new System.Windows.Forms.TextBox();
-		this.btnSettings = new System.Windows.Forms.Button();
-		this.tb_fm_ave = new System.Windows.Forms.TextBox();
-		this.tbTimeout = new System.Windows.Forms.TextBox();
-		this.cmbSortColumn = new System.Windows.Forms.ComboBox();
-		this.label2 = new System.Windows.Forms.Label();
-		this.tbClashPort = new System.Windows.Forms.TextBox();
-		this.btStopTest = new System.Windows.Forms.Button();
-		this.label16 = new System.Windows.Forms.Label();
 		this.cbKeywordFilter = new System.Windows.Forms.CheckBox();
-		this.cmbSortOrder = new System.Windows.Forms.ComboBox();
-		this.cbSpeedTest = new System.Windows.Forms.CheckBox();
-		this.label5 = new System.Windows.Forms.Label();
-		this.cbStrictMode = new System.Windows.Forms.CheckBox();
-		this.label8 = new System.Windows.Forms.Label();
 		this.tbKeywordFilter = new System.Windows.Forms.TextBox();
-		this.tb_fm_max = new System.Windows.Forms.TextBox();
 		this.btnKeywordPreset = new System.Windows.Forms.Button();
-		this.tb_fm_second = new System.Windows.Forms.TextBox();
 		this.button1 = new System.Windows.Forms.Button();
 		this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
 		this.订阅列表ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 		this.导入到节点列表ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-		this.label6 = new System.Windows.Forms.Label();
-		this.cbAutoSave = new System.Windows.Forms.CheckBox();
-		this.cbFastMode = new System.Windows.Forms.CheckBox();
-		this.label12 = new System.Windows.Forms.Label();
-		this.cbRealPing = new System.Windows.Forms.CheckBox();
-		this.label4 = new System.Windows.Forms.Label();
-		this.tbThread = new System.Windows.Forms.TextBox();
-		this.label3 = new System.Windows.Forms.Label();
-		this.tbPingNum = new System.Windows.Forms.TextBox();
 		this.cmsKeywordPreset = new System.Windows.Forms.ContextMenuStrip(this.components);
 		this.toolTipKeywordFilter = new System.Windows.Forms.ToolTip(this.components);
 		this.cmsMain = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -4497,26 +3231,22 @@ public class MainForm : Form
 		this.lvServers.DoubleClick += new System.EventHandler(lvServers_DoubleClick);
 		this.lvServers.KeyDown += new System.Windows.Forms.KeyEventHandler(lvServers_KeyDown);
 		this.cmsLv.ImageScalingSize = new System.Drawing.Size(20, 20);
-		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[21]
+		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[15]
 		{
-			this.menuRealPingServer, this.menuDownLoadServer, this.menuAutoTestSelected, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
-			this.menuRemoveServer, this.menuRemoveDuplicateServer, this.menuRemoveLoseServer, this.menuRemoveLowServer, this.menuRemoveNoResultServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.menuExport2SubContent, this.toolStripSeparator6, this.menuExport2Base64,
-			this.menuExport2Clash, this.toolStripSeparator7, this.menuStartClash
+			this.menuRealPingServer, this.menuDownLoadServer, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
+			this.menuRemoveServer, this.menuRemoveDuplicateServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.menuExport2SubContent, this.toolStripSeparator6, this.menuExport2Base64,
+			this.menuExport2Clash
 		});
 		this.cmsLv.Name = "cmsLv";
-		this.cmsLv.Size = new System.Drawing.Size(285, 466);
+		this.cmsLv.Size = new System.Drawing.Size(285, 340);
 		this.menuRealPingServer.Name = "menuRealPingServer";
 		this.menuRealPingServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRealPingServer.Text = "测试HTTPS延迟(Ctrl+R)";
+		this.menuRealPingServer.Text = "测试延迟(Ctrl+R)";
 		this.menuRealPingServer.Click += new System.EventHandler(menuRealPingServer_Click);
 		this.menuDownLoadServer.Name = "menuDownLoadServer";
 		this.menuDownLoadServer.Size = new System.Drawing.Size(284, 24);
-		this.menuDownLoadServer.Text = "测试服务器下载速度(Ctrl+T)";
+		this.menuDownLoadServer.Text = "测试下载(Ctrl+T)";
 		this.menuDownLoadServer.Click += new System.EventHandler(menuDownLoadServer_Click);
-		this.menuAutoTestSelected.Name = "menuAutoTestSelected";
-		this.menuAutoTestSelected.Size = new System.Drawing.Size(284, 24);
-		this.menuAutoTestSelected.Text = "选中节点一键测速(Ctrl+E)";
-		this.menuAutoTestSelected.Click += new System.EventHandler(menuAutoTestSelected_Click);
 		this.toolStripSeparator3.Name = "toolStripSeparator3";
 		this.toolStripSeparator3.Size = new System.Drawing.Size(281, 6);
 		this.menuAddServers.Name = "menuAddServers";
@@ -4541,18 +3271,6 @@ public class MainForm : Form
 		this.menuRemoveDuplicateServer.Size = new System.Drawing.Size(284, 24);
 		this.menuRemoveDuplicateServer.Text = "移除重复节点";
 		this.menuRemoveDuplicateServer.Click += new System.EventHandler(menuRemoveDuplicateServer_Click);
-		this.menuRemoveLoseServer.Name = "menuRemoveLoseServer";
-		this.menuRemoveLoseServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRemoveLoseServer.Text = "移除无效节点";
-		this.menuRemoveLoseServer.Click += new System.EventHandler(menuRemoveLoseServer_Click);
-		this.menuRemoveLowServer.Name = "menuRemoveLowServer";
-		this.menuRemoveLowServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRemoveLowServer.Text = "移除低速节点";
-		this.menuRemoveLowServer.Click += new System.EventHandler(menuRemoveLowServer_Click);
-		this.menuRemoveNoResultServer.Name = "menuRemoveNoResultServer";
-		this.menuRemoveNoResultServer.Size = new System.Drawing.Size(284, 24);
-		this.menuRemoveNoResultServer.Text = "移除无结果节点";
-		this.menuRemoveNoResultServer.Click += new System.EventHandler(menuRemoveNoResultServer_Click);
 		this.toolStripSeparator5.Name = "toolStripSeparator5";
 		this.toolStripSeparator5.Size = new System.Drawing.Size(281, 6);
 		this.menuExport2ShareUrl.Name = "menuExport2ShareUrl";
@@ -4573,12 +3291,6 @@ public class MainForm : Form
 		this.menuExport2Clash.Size = new System.Drawing.Size(284, 24);
 		this.menuExport2Clash.Text = "导出Mihomo订阅文件";
 		this.menuExport2Clash.Click += new System.EventHandler(menuExport2Clash_Click);
-		this.toolStripSeparator7.Name = "toolStripSeparator7";
-		this.toolStripSeparator7.Size = new System.Drawing.Size(281, 6);
-		this.menuStartClash.Name = "menuStartClash";
-		this.menuStartClash.Size = new System.Drawing.Size(284, 24);
-		this.menuStartClash.Text = "选中节点推送到Mihomo内核";
-		this.menuStartClash.Click += new System.EventHandler(menuStartClash_Click);
 		this.panel2.Controls.Add(this.groupBox1);
 		this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
 		this.panel2.Location = new System.Drawing.Point(0, 194);
@@ -4626,272 +3338,168 @@ public class MainForm : Form
 		this.groupBox3.TabIndex = 0;
 		this.groupBox3.TabStop = false;
 		this.groupBox5.Anchor = System.Windows.Forms.AnchorStyles.Top;
+		this.groupBox5.Controls.Add(this.lblDelayUrl);
+		this.groupBox5.Controls.Add(this.tbDelayUrl);
+		this.groupBox5.Controls.Add(this.lblPingCount);
+		this.groupBox5.Controls.Add(this.tbPingCount);
+		this.groupBox5.Controls.Add(this.label4);
+		this.groupBox5.Controls.Add(this.tbTimeout);
+		this.groupBox5.Controls.Add(this.btnTestDelay);
+		this.groupBox5.Controls.Add(this.lblSpeedUrl);
+		this.groupBox5.Controls.Add(this.tbSpeedUrl);
+		this.groupBox5.Controls.Add(this.lblDownloadThread);
+		this.groupBox5.Controls.Add(this.tbDownloadThread);
+		this.groupBox5.Controls.Add(this.lblDownloadMaxTime);
+		this.groupBox5.Controls.Add(this.tbDownloadMaxTime);
+		this.groupBox5.Controls.Add(this.btnTestSpeed);
 		this.groupBox5.Controls.Add(this.btnClearResult);
 		this.groupBox5.Controls.Add(this.btnClearLog);
-		this.groupBox5.Controls.Add(this.btnSaveConfig);
-		this.groupBox5.Controls.Add(this.label10);
-		this.groupBox5.Controls.Add(this.btnStartTest);
-		this.groupBox5.Controls.Add(this.cbAutoSort);
-		this.groupBox5.Controls.Add(this.label15);
 		this.groupBox5.Controls.Add(this.button2);
-		this.groupBox5.Controls.Add(this.tbLowSpeed);
-		this.groupBox5.Controls.Add(this.btnSettings);
-		this.groupBox5.Controls.Add(this.tb_fm_ave);
-		this.groupBox5.Controls.Add(this.tbTimeout);
-		this.groupBox5.Controls.Add(this.cmbSortColumn);
-		this.groupBox5.Controls.Add(this.label2);
-		this.groupBox5.Controls.Add(this.tbClashPort);
-		this.groupBox5.Controls.Add(this.btStopTest);
-		this.groupBox5.Controls.Add(this.label16);
 		this.groupBox5.Controls.Add(this.cbKeywordFilter);
-		this.groupBox5.Controls.Add(this.cmbSortOrder);
-		this.groupBox5.Controls.Add(this.cbSpeedTest);
-		this.groupBox5.Controls.Add(this.label5);
-		this.groupBox5.Controls.Add(this.cbStrictMode);
-		this.groupBox5.Controls.Add(this.label8);
 		this.groupBox5.Controls.Add(this.tbKeywordFilter);
-		this.groupBox5.Controls.Add(this.tb_fm_max);
 		this.groupBox5.Controls.Add(this.btnKeywordPreset);
-		this.groupBox5.Controls.Add(this.tb_fm_second);
 		this.groupBox5.Controls.Add(this.button1);
-		this.groupBox5.Controls.Add(this.label6);
-		this.groupBox5.Controls.Add(this.cbAutoSave);
-		this.groupBox5.Controls.Add(this.cbFastMode);
-		this.groupBox5.Controls.Add(this.label12);
-		this.groupBox5.Controls.Add(this.cbRealPing);
-		this.groupBox5.Controls.Add(this.label4);
-		this.groupBox5.Controls.Add(this.tbThread);
-		this.groupBox5.Controls.Add(this.label3);
-		this.groupBox5.Controls.Add(this.tbPingNum);
 		this.groupBox5.Location = new System.Drawing.Point(0, -8);
 		this.groupBox5.Margin = new System.Windows.Forms.Padding(4);
 		this.groupBox5.Name = "groupBox5";
 		this.groupBox5.Padding = new System.Windows.Forms.Padding(4);
 		this.groupBox5.Size = new System.Drawing.Size(1841, 202);
 		this.groupBox5.TabIndex = 29;
-		this.btnClearResult.Location = new System.Drawing.Point(1384, 156);
-		this.btnClearResult.Name = "btnClearResult";
-		this.btnClearResult.Size = new System.Drawing.Size(100, 35);
-		this.btnClearResult.TabIndex = 35;
-		this.btnClearResult.Text = "清空结果";
-		this.btnClearResult.UseVisualStyleBackColor = true;
-		this.btnClearResult.Click += new System.EventHandler(btnClearResult_Click);
-		this.btnClearLog.Location = new System.Drawing.Point(124, 157);
-		this.btnClearLog.Name = "btnClearLog";
-		this.btnClearLog.Size = new System.Drawing.Size(100, 35);
-		this.btnClearLog.TabIndex = 6;
-		this.btnClearLog.Text = "清空反馈";
-		this.btnClearLog.UseVisualStyleBackColor = true;
-		this.btnClearLog.Click += new System.EventHandler(btnClearLog_Click);
-		this.btnSaveConfig.Location = new System.Drawing.Point(886, 79);
-		this.btnSaveConfig.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-		this.btnSaveConfig.Name = "btnSaveConfig";
-		this.btnSaveConfig.Size = new System.Drawing.Size(119, 48);
-		this.btnSaveConfig.TabIndex = 5;
-		this.btnSaveConfig.Text = "保存配置";
-		this.btnSaveConfig.UseVisualStyleBackColor = true;
-		this.btnSaveConfig.Click += new System.EventHandler(btnSaveConfig_Click);
-		this.label10.AutoSize = true;
-		this.label10.Location = new System.Drawing.Point(892, 167);
-		this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label10.Name = "label10";
-		this.label10.Size = new System.Drawing.Size(113, 15);
-		this.label10.TabIndex = 31;
-		this.label10.Text = "限定时间(秒)：";
-		this.btnStartTest.Location = new System.Drawing.Point(1561, 90);
-		this.btnStartTest.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-		this.btnStartTest.Name = "btnStartTest";
-		this.btnStartTest.Size = new System.Drawing.Size(155, 55);
-		this.btnStartTest.TabIndex = 4;
-		this.btnStartTest.Text = "一键自动测速";
-		this.btnStartTest.UseVisualStyleBackColor = true;
-		this.btnStartTest.Click += new System.EventHandler(btnStartTest_Click);
-		this.cbAutoSort.AutoSize = true;
-		this.cbAutoSort.Location = new System.Drawing.Point(1079, 36);
-		this.cbAutoSort.Margin = new System.Windows.Forms.Padding(4);
-		this.cbAutoSort.Name = "cbAutoSort";
-		this.cbAutoSort.Size = new System.Drawing.Size(89, 19);
-		this.cbAutoSort.TabIndex = 11;
-		this.cbAutoSort.Text = "自动排序";
-		this.cbAutoSort.UseVisualStyleBackColor = true;
-		this.cbAutoSort.CheckedChanged += new System.EventHandler(cbAutoSort_CheckedChanged);
-		this.label15.AutoSize = true;
-		this.label15.Location = new System.Drawing.Point(1176, 37);
-		this.label15.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label15.Name = "label15";
-		this.label15.Size = new System.Drawing.Size(82, 15);
-		this.label15.TabIndex = 12;
-		this.label15.Text = "排序依据：";
-		this.button2.Location = new System.Drawing.Point(1626, 156);
-		this.button2.Margin = new System.Windows.Forms.Padding(4);
-		this.button2.Name = "button2";
-		this.button2.Size = new System.Drawing.Size(90, 35);
-		this.button2.TabIndex = 28;
-		this.button2.Text = "关于软件";
-		this.button2.UseVisualStyleBackColor = true;
-		this.button2.Click += new System.EventHandler(button2_Click);
-		this.tbLowSpeed.Location = new System.Drawing.Point(492, 117);
-		this.tbLowSpeed.Margin = new System.Windows.Forms.Padding(4);
-		this.tbLowSpeed.Name = "tbLowSpeed";
-		this.tbLowSpeed.Size = new System.Drawing.Size(49, 25);
-		this.tbLowSpeed.TabIndex = 3;
-		this.tbLowSpeed.Text = "0.5";
-		this.tbLowSpeed.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tbLowSpeed.TextChanged += new System.EventHandler(tbLowSpeed_TextChanged);
-		this.btnSettings.Location = new System.Drawing.Point(1499, 156);
-		this.btnSettings.Margin = new System.Windows.Forms.Padding(4);
-		this.btnSettings.Name = "btnSettings";
-		this.btnSettings.Size = new System.Drawing.Size(119, 35);
-		this.btnSettings.TabIndex = 29;
-		this.btnSettings.Text = "设置";
-		this.btnSettings.UseVisualStyleBackColor = true;
-		this.btnSettings.Click += new System.EventHandler(btnSettings_Click);
-		this.tb_fm_ave.Location = new System.Drawing.Point(1186, 161);
-		this.tb_fm_ave.Margin = new System.Windows.Forms.Padding(4);
-		this.tb_fm_ave.Name = "tb_fm_ave";
-		this.tb_fm_ave.Size = new System.Drawing.Size(49, 25);
-		this.tb_fm_ave.TabIndex = 29;
-		this.tb_fm_ave.Text = "10";
-		this.tb_fm_ave.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tb_fm_ave.TextChanged += new System.EventHandler(tb_fm_ave_TextChanged);
-		this.tbTimeout.Location = new System.Drawing.Point(492, 77);
-		this.tbTimeout.Margin = new System.Windows.Forms.Padding(4);
+		// 延迟测试配置行（第一行 Y=28）
+		this.lblDelayUrl.AutoSize = true;
+		this.lblDelayUrl.Location = new System.Drawing.Point(24, 32);
+		this.lblDelayUrl.Name = "lblDelayUrl";
+		this.lblDelayUrl.Size = new System.Drawing.Size(76, 15);
+		this.lblDelayUrl.TabIndex = 1;
+		this.lblDelayUrl.Text = "延迟URL：";
+		this.tbDelayUrl.Location = new System.Drawing.Point(104, 28);
+		this.tbDelayUrl.Name = "tbDelayUrl";
+		this.tbDelayUrl.Size = new System.Drawing.Size(420, 25);
+		this.tbDelayUrl.TabIndex = 2;
+		this.tbDelayUrl.TextChanged += new System.EventHandler(tbDelayUrl_TextChanged);
+		this.lblPingCount.AutoSize = true;
+		this.lblPingCount.Location = new System.Drawing.Point(540, 32);
+		this.lblPingCount.Name = "lblPingCount";
+		this.lblPingCount.Size = new System.Drawing.Size(82, 15);
+		this.lblPingCount.TabIndex = 3;
+		this.lblPingCount.Text = "测试次数：";
+		this.tbPingCount.Location = new System.Drawing.Point(625, 28);
+		this.tbPingCount.Name = "tbPingCount";
+		this.tbPingCount.Size = new System.Drawing.Size(55, 25);
+		this.tbPingCount.TabIndex = 4;
+		this.tbPingCount.Text = "3";
+		this.tbPingCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+		this.tbPingCount.TextChanged += new System.EventHandler(tbPingCount_TextChanged);
+		this.label4.AutoSize = true;
+		this.label4.Location = new System.Drawing.Point(696, 32);
+		this.label4.Name = "label4";
+		this.label4.Size = new System.Drawing.Size(113, 15);
+		this.label4.TabIndex = 5;
+		this.label4.Text = "延迟超时(秒)：";
+		this.tbTimeout.Location = new System.Drawing.Point(810, 28);
 		this.tbTimeout.Name = "tbTimeout";
-		this.tbTimeout.Size = new System.Drawing.Size(49, 25);
-		this.tbTimeout.TabIndex = 1;
+		this.tbTimeout.Size = new System.Drawing.Size(55, 25);
+		this.tbTimeout.TabIndex = 6;
 		this.tbTimeout.Text = "5";
 		this.tbTimeout.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
 		this.tbTimeout.TextChanged += new System.EventHandler(tbTimeout_TextChanged);
-		this.cmbSortColumn.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-		this.cmbSortColumn.FormattingEnabled = true;
-		this.cmbSortColumn.Items.AddRange(new object[4] { "平均速度", "峰值速度", "HTTPS延迟", "最后测速" });
-		this.cmbSortColumn.Location = new System.Drawing.Point(1266, 32);
-		this.cmbSortColumn.Margin = new System.Windows.Forms.Padding(4);
-		this.cmbSortColumn.Name = "cmbSortColumn";
-		this.cmbSortColumn.Size = new System.Drawing.Size(100, 23);
-		this.cmbSortColumn.TabIndex = 13;
-		this.cmbSortColumn.SelectedIndexChanged += new System.EventHandler(cmbSortColumn_SelectedIndexChanged);
-		this.label2.AutoSize = true;
-		this.label2.Location = new System.Drawing.Point(324, 120);
-		this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label2.Name = "label2";
-		this.label2.Size = new System.Drawing.Size(160, 15);
-		this.label2.TabIndex = 5;
-		this.label2.Text = "清空低速节点(MB/s)：";
-		this.tbClashPort.Location = new System.Drawing.Point(1497, 123);
-		this.tbClashPort.Margin = new System.Windows.Forms.Padding(4);
-		this.tbClashPort.Name = "tbClashPort";
-		this.tbClashPort.Size = new System.Drawing.Size(53, 25);
-		this.tbClashPort.TabIndex = 12;
-		this.tbClashPort.Text = "9090";
-		this.tbClashPort.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tbClashPort.TextChanged += new System.EventHandler(tbClashPort_TextChanged);
-		this.btStopTest.Enabled = false;
-		this.btStopTest.Location = new System.Drawing.Point(1561, 15);
-		this.btStopTest.Margin = new System.Windows.Forms.Padding(4);
-		this.btStopTest.Name = "btStopTest";
-		this.btStopTest.Size = new System.Drawing.Size(155, 55);
-		this.btStopTest.TabIndex = 2;
-		this.btStopTest.Text = "停止手动测速线程";
-		this.btStopTest.UseVisualStyleBackColor = true;
-		this.btStopTest.Click += new System.EventHandler(button1_Click);
-		this.label16.AutoSize = true;
-		this.label16.Location = new System.Drawing.Point(1377, 38);
-		this.label16.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label16.Name = "label16";
-		this.label16.Size = new System.Drawing.Size(82, 15);
-		this.label16.TabIndex = 14;
-		this.label16.Text = "排序顺序：";
+		this.btnTestDelay.Location = new System.Drawing.Point(885, 20);
+		this.btnTestDelay.Name = "btnTestDelay";
+		this.btnTestDelay.Size = new System.Drawing.Size(130, 38);
+		this.btnTestDelay.TabIndex = 7;
+		this.btnTestDelay.Text = "测试延迟";
+		this.btnTestDelay.UseVisualStyleBackColor = true;
+		this.btnTestDelay.Click += new System.EventHandler(btnTestDelay_Click);
+		// 下载测试配置行（第二行 Y=82）
+		this.lblSpeedUrl.AutoSize = true;
+		this.lblSpeedUrl.Location = new System.Drawing.Point(24, 86);
+		this.lblSpeedUrl.Name = "lblSpeedUrl";
+		this.lblSpeedUrl.Size = new System.Drawing.Size(76, 15);
+		this.lblSpeedUrl.TabIndex = 8;
+		this.lblSpeedUrl.Text = "下载URL：";
+		this.tbSpeedUrl.Location = new System.Drawing.Point(104, 82);
+		this.tbSpeedUrl.Name = "tbSpeedUrl";
+		this.tbSpeedUrl.Size = new System.Drawing.Size(420, 25);
+		this.tbSpeedUrl.TabIndex = 9;
+		this.tbSpeedUrl.TextChanged += new System.EventHandler(tbSpeedUrl_TextChanged);
+		this.lblDownloadThread.AutoSize = true;
+		this.lblDownloadThread.Location = new System.Drawing.Point(540, 86);
+		this.lblDownloadThread.Name = "lblDownloadThread";
+		this.lblDownloadThread.Size = new System.Drawing.Size(82, 15);
+		this.lblDownloadThread.TabIndex = 10;
+		this.lblDownloadThread.Text = "测试线程：";
+		this.tbDownloadThread.Location = new System.Drawing.Point(625, 82);
+		this.tbDownloadThread.Name = "tbDownloadThread";
+		this.tbDownloadThread.Size = new System.Drawing.Size(55, 25);
+		this.tbDownloadThread.TabIndex = 11;
+		this.tbDownloadThread.Text = "4";
+		this.tbDownloadThread.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+		this.tbDownloadThread.TextChanged += new System.EventHandler(tbDownloadThread_TextChanged);
+		this.lblDownloadMaxTime.AutoSize = true;
+		this.lblDownloadMaxTime.Location = new System.Drawing.Point(696, 86);
+		this.lblDownloadMaxTime.Name = "lblDownloadMaxTime";
+		this.lblDownloadMaxTime.Size = new System.Drawing.Size(113, 15);
+		this.lblDownloadMaxTime.TabIndex = 12;
+		this.lblDownloadMaxTime.Text = "最大时间(秒)：";
+		this.tbDownloadMaxTime.Location = new System.Drawing.Point(810, 82);
+		this.tbDownloadMaxTime.Name = "tbDownloadMaxTime";
+		this.tbDownloadMaxTime.Size = new System.Drawing.Size(55, 25);
+		this.tbDownloadMaxTime.TabIndex = 13;
+		this.tbDownloadMaxTime.Text = "10";
+		this.tbDownloadMaxTime.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+		this.tbDownloadMaxTime.TextChanged += new System.EventHandler(tbDownloadMaxTime_TextChanged);
+		this.btnTestSpeed.Location = new System.Drawing.Point(885, 74);
+		this.btnTestSpeed.Name = "btnTestSpeed";
+		this.btnTestSpeed.Size = new System.Drawing.Size(130, 38);
+		this.btnTestSpeed.TabIndex = 14;
+		this.btnTestSpeed.Text = "测试下载";
+		this.btnTestSpeed.UseVisualStyleBackColor = true;
+		this.btnTestSpeed.Click += new System.EventHandler(btnTestSpeed_Click);
+		// 右侧与底部操作栏
 		this.cbKeywordFilter.AutoSize = true;
 		this.cbKeywordFilter.Checked = true;
 		this.cbKeywordFilter.CheckState = System.Windows.Forms.CheckState.Checked;
-		this.cbKeywordFilter.Location = new System.Drawing.Point(1266, 81);
+		this.cbKeywordFilter.Location = new System.Drawing.Point(1065, 30);
 		this.cbKeywordFilter.Name = "cbKeywordFilter";
 		this.cbKeywordFilter.Size = new System.Drawing.Size(112, 19);
-		this.cbKeywordFilter.TabIndex = 33;
+		this.cbKeywordFilter.TabIndex = 20;
 		this.cbKeywordFilter.Text = "关键词筛选:";
 		this.toolTipKeywordFilter.SetToolTip(this.cbKeywordFilter, "勾选后启用关键词筛选规则");
 		this.cbKeywordFilter.UseVisualStyleBackColor = true;
 		this.cbKeywordFilter.CheckedChanged += new System.EventHandler(cbKeywordFilter_CheckedChanged);
-		this.cmbSortOrder.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-		this.cmbSortOrder.FormattingEnabled = true;
-		this.cmbSortOrder.Items.AddRange(new object[2] { "降序", "升序" });
-		this.cmbSortOrder.Location = new System.Drawing.Point(1463, 32);
-		this.cmbSortOrder.Margin = new System.Windows.Forms.Padding(4);
-		this.cmbSortOrder.Name = "cmbSortOrder";
-		this.cmbSortOrder.Size = new System.Drawing.Size(80, 23);
-		this.cmbSortOrder.TabIndex = 15;
-		this.cmbSortOrder.SelectedIndexChanged += new System.EventHandler(cmbSortOrder_SelectedIndexChanged);
-		this.cbSpeedTest.AutoSize = true;
-		this.cbSpeedTest.Checked = true;
-		this.cbSpeedTest.CheckState = System.Windows.Forms.CheckState.Checked;
-		this.cbSpeedTest.Location = new System.Drawing.Point(124, 119);
-		this.cbSpeedTest.Margin = new System.Windows.Forms.Padding(4);
-		this.cbSpeedTest.Name = "cbSpeedTest";
-		this.cbSpeedTest.Size = new System.Drawing.Size(104, 19);
-		this.cbSpeedTest.TabIndex = 9;
-		this.cbSpeedTest.Text = "测下载速度";
-		this.cbSpeedTest.UseVisualStyleBackColor = true;
-		this.cbSpeedTest.CheckedChanged += new System.EventHandler(cbSpeedTest_CheckedChanged);
-		this.label5.AutoSize = true;
-		this.label5.Location = new System.Drawing.Point(1332, 127);
-		this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label5.Name = "label5";
-		this.label5.Size = new System.Drawing.Size(160, 15);
-		this.label5.TabIndex = 11;
-		this.label5.Text = "Mihomo外部控制端口：";
-		this.cbStrictMode.AutoSize = true;
-		this.cbStrictMode.Location = new System.Drawing.Point(1079, 126);
-		this.cbStrictMode.Margin = new System.Windows.Forms.Padding(4);
-		this.cbStrictMode.Name = "cbStrictMode";
-		this.cbStrictMode.Size = new System.Drawing.Size(119, 19);
-		this.cbStrictMode.TabIndex = 16;
-		this.cbStrictMode.Text = "严格排除模式";
-		this.toolTipKeywordFilter.SetToolTip(this.cbStrictMode, "启用后，HTTPS延迟测速失败即删除节点");
-		this.cbStrictMode.UseVisualStyleBackColor = true;
-		this.cbStrictMode.CheckedChanged += new System.EventHandler(cbStrictMode_CheckedChanged);
-		this.label8.AutoSize = true;
-		this.label8.Location = new System.Drawing.Point(1071, 167);
-		this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label8.Name = "label8";
-		this.label8.Size = new System.Drawing.Size(106, 15);
-		this.label8.TabIndex = 28;
-		this.label8.Text = "下载进度(%)：";
-		this.tbKeywordFilter.Location = new System.Drawing.Point(1384, 79);
+		this.tbKeywordFilter.Location = new System.Drawing.Point(1185, 28);
 		this.tbKeywordFilter.Name = "tbKeywordFilter";
-		this.tbKeywordFilter.Size = new System.Drawing.Size(135, 25);
-		this.tbKeywordFilter.TabIndex = 32;
+		this.tbKeywordFilter.Size = new System.Drawing.Size(250, 25);
+		this.tbKeywordFilter.TabIndex = 21;
 		this.toolTipKeywordFilter.SetToolTip(this.tbKeywordFilter, "支持多个关键词，用逗号或空格分隔\r\n例如：香港,日本,美国 或 \ud83c\udded\ud83c\uddf0 \ud83c\uddef\ud83c\uddf5 \ud83c\uddfa\ud83c\uddf8\r\n使用 ! 前缀排除关键词\r\n例如：!过期 !失效");
 		this.tbKeywordFilter.TextChanged += new System.EventHandler(tbKeywordFilter_TextChanged);
-		this.tb_fm_max.Location = new System.Drawing.Point(824, 160);
-		this.tb_fm_max.Margin = new System.Windows.Forms.Padding(4);
-		this.tb_fm_max.Name = "tb_fm_max";
-		this.tb_fm_max.Size = new System.Drawing.Size(49, 25);
-		this.tb_fm_max.TabIndex = 26;
-		this.tb_fm_max.Text = "300";
-		this.tb_fm_max.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tb_fm_max.TextChanged += new System.EventHandler(tb_fm_max_TextChanged);
-		this.btnKeywordPreset.Location = new System.Drawing.Point(1521, 79);
+		this.btnKeywordPreset.Location = new System.Drawing.Point(1440, 28);
 		this.btnKeywordPreset.Name = "btnKeywordPreset";
 		this.btnKeywordPreset.Size = new System.Drawing.Size(33, 25);
-		this.btnKeywordPreset.TabIndex = 34;
+		this.btnKeywordPreset.TabIndex = 22;
 		this.btnKeywordPreset.Text = "▼";
 		this.toolTipKeywordFilter.SetToolTip(this.btnKeywordPreset, "选择常用地区预设");
 		this.btnKeywordPreset.UseVisualStyleBackColor = true;
 		this.btnKeywordPreset.Click += new System.EventHandler(btnKeywordPreset_Click);
-		this.tb_fm_second.Location = new System.Drawing.Point(1013, 161);
-		this.tb_fm_second.Margin = new System.Windows.Forms.Padding(4);
-		this.tb_fm_second.Name = "tb_fm_second";
-		this.tb_fm_second.Size = new System.Drawing.Size(49, 25);
-		this.tb_fm_second.TabIndex = 25;
-		this.tb_fm_second.Text = "5";
-		this.tb_fm_second.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tb_fm_second.TextChanged += new System.EventHandler(tb_fm_second_TextChanged);
+		this.btnClearLog.Location = new System.Drawing.Point(104, 142);
+		this.btnClearLog.Name = "btnClearLog";
+		this.btnClearLog.Size = new System.Drawing.Size(110, 38);
+		this.btnClearLog.TabIndex = 25;
+		this.btnClearLog.Text = "清空反馈";
+		this.btnClearLog.UseVisualStyleBackColor = true;
+		this.btnClearLog.Click += new System.EventHandler(btnClearLog_Click);
+		this.btnClearResult.Location = new System.Drawing.Point(230, 142);
+		this.btnClearResult.Name = "btnClearResult";
+		this.btnClearResult.Size = new System.Drawing.Size(110, 38);
+		this.btnClearResult.TabIndex = 26;
+		this.btnClearResult.Text = "清空结果";
+		this.btnClearResult.UseVisualStyleBackColor = true;
+		this.btnClearResult.Click += new System.EventHandler(btnClearResult_Click);
 		this.button1.ContextMenuStrip = this.contextMenuStrip1;
-		this.button1.Location = new System.Drawing.Point(687, 79);
+		this.button1.Location = new System.Drawing.Point(1450, 142);
 		this.button1.Margin = new System.Windows.Forms.Padding(4);
 		this.button1.Name = "button1";
-		this.button1.Size = new System.Drawing.Size(118, 48);
+		this.button1.Size = new System.Drawing.Size(115, 38);
 		this.button1.TabIndex = 27;
 		this.button1.Text = "订阅管理";
 		this.button1.UseVisualStyleBackColor = true;
@@ -4908,82 +3516,14 @@ public class MainForm : Form
 		this.导入到节点列表ToolStripMenuItem.Size = new System.Drawing.Size(183, 24);
 		this.导入到节点列表ToolStripMenuItem.Text = "导入到节点列表";
 		this.导入到节点列表ToolStripMenuItem.Click += new System.EventHandler(导入到节点列表ToolStripMenuItem_Click);
-		this.label6.AutoSize = true;
-		this.label6.Location = new System.Drawing.Point(684, 167);
-		this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label6.Name = "label6";
-		this.label6.Size = new System.Drawing.Size(130, 15);
-		this.label6.TabIndex = 24;
-		this.label6.Text = "峰值速度(MB/s)：";
-		this.cbAutoSave.AutoSize = true;
-		this.cbAutoSave.Location = new System.Drawing.Point(1079, 81);
-		this.cbAutoSave.Margin = new System.Windows.Forms.Padding(4);
-		this.cbAutoSave.Name = "cbAutoSave";
-		this.cbAutoSave.Size = new System.Drawing.Size(164, 19);
-		this.cbAutoSave.TabIndex = 17;
-		this.cbAutoSave.Text = "测速后自动保存配置";
-		this.toolTipKeywordFilter.SetToolTip(this.cbAutoSave, "启用后，自动测速结束时将自动保存配置，无需弹窗确认\r\n禁用时，测速结束后会弹窗询问是否保存");
-		this.cbAutoSave.UseVisualStyleBackColor = true;
-		this.cbAutoSave.CheckedChanged += new System.EventHandler(cbAutoSave_CheckedChanged);
-		this.cbFastMode.AutoSize = true;
-		this.cbFastMode.Checked = true;
-		this.cbFastMode.CheckState = System.Windows.Forms.CheckState.Checked;
-		this.cbFastMode.Location = new System.Drawing.Point(548, 166);
-		this.cbFastMode.Margin = new System.Windows.Forms.Padding(4);
-		this.cbFastMode.Name = "cbFastMode";
-		this.cbFastMode.Size = new System.Drawing.Size(119, 19);
-		this.cbFastMode.TabIndex = 23;
-		this.cbFastMode.Text = "启用快速模式";
-		this.cbFastMode.UseVisualStyleBackColor = true;
-		this.cbFastMode.CheckedChanged += new System.EventHandler(cbFastMode_CheckedChanged);
-		this.label12.AutoSize = true;
-		this.label12.Location = new System.Drawing.Point(121, 34);
-		this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label12.Name = "label12";
-		this.label12.Size = new System.Drawing.Size(127, 15);
-		this.label12.TabIndex = 27;
-		this.label12.Text = "延迟测速线程数：";
-		this.cbRealPing.AutoSize = true;
-		this.cbRealPing.Checked = true;
-		this.cbRealPing.CheckState = System.Windows.Forms.CheckState.Checked;
-		this.cbRealPing.Location = new System.Drawing.Point(124, 79);
-		this.cbRealPing.Margin = new System.Windows.Forms.Padding(4);
-		this.cbRealPing.Name = "cbRealPing";
-		this.cbRealPing.Size = new System.Drawing.Size(104, 19);
-		this.cbRealPing.TabIndex = 10;
-		this.cbRealPing.Text = "测延迟速度";
-		this.cbRealPing.UseVisualStyleBackColor = true;
-		this.cbRealPing.CheckedChanged += new System.EventHandler(cbRealPing_CheckedChanged);
-		this.label4.AutoSize = true;
-		this.label4.Location = new System.Drawing.Point(371, 80);
-		this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label4.Name = "label4";
-		this.label4.Size = new System.Drawing.Size(113, 15);
-		this.label4.TabIndex = 8;
-		this.label4.Text = "延迟超时(秒)：";
-		this.tbThread.Location = new System.Drawing.Point(256, 31);
-		this.tbThread.Margin = new System.Windows.Forms.Padding(4);
-		this.tbThread.Name = "tbThread";
-		this.tbThread.Size = new System.Drawing.Size(53, 25);
-		this.tbThread.TabIndex = 13;
-		this.tbThread.Text = "100";
-		this.tbThread.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tbThread.TextChanged += new System.EventHandler(tbThread_TextChanged);
-		this.label3.AutoSize = true;
-		this.label3.Location = new System.Drawing.Point(326, 37);
-		this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-		this.label3.Name = "label3";
-		this.label3.Size = new System.Drawing.Size(158, 15);
-		this.label3.TabIndex = 7;
-		this.label3.Text = "延迟结果应小于(个)：";
-		this.tbPingNum.Location = new System.Drawing.Point(492, 33);
-		this.tbPingNum.Margin = new System.Windows.Forms.Padding(4);
-		this.tbPingNum.Name = "tbPingNum";
-		this.tbPingNum.Size = new System.Drawing.Size(49, 25);
-		this.tbPingNum.TabIndex = 2;
-		this.tbPingNum.Text = "100";
-		this.tbPingNum.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-		this.tbPingNum.TextChanged += new System.EventHandler(tbPingNum_TextChanged);
+		this.button2.Location = new System.Drawing.Point(1580, 142);
+		this.button2.Margin = new System.Windows.Forms.Padding(4);
+		this.button2.Name = "button2";
+		this.button2.Size = new System.Drawing.Size(110, 38);
+		this.button2.TabIndex = 28;
+		this.button2.Text = "关于软件";
+		this.button2.UseVisualStyleBackColor = true;
+		this.button2.Click += new System.EventHandler(button2_Click);
 		this.cmsKeywordPreset.ImageScalingSize = new System.Drawing.Size(20, 20);
 		this.cmsKeywordPreset.Name = "cmsKeywordPreset";
 		this.cmsKeywordPreset.Size = new System.Drawing.Size(61, 4);
@@ -5235,6 +3775,81 @@ public class MainForm : Form
 		ShowMsg("订阅顺序已更新");
 	}
 
+	public void UpdateSingleSubscription(SubItem subItem, Action onFinished = null)
+	{
+		if (subItem == null || string.IsNullOrWhiteSpace(subItem.url))
+		{
+			ShowMsg("订阅信息无效或URL为空");
+			onFinished?.Invoke();
+			return;
+		}
+		string subRemarks = subItem.remarks;
+		string url = subItem.url.Trim();
+		string subId = subItem.id.Trim();
+		AppendText(notify: false, "开始导入/更新订阅：" + subRemarks);
+		AppendText(notify: false, "--> 正在下载订阅数据...");
+		DownloadHandle downloadHandle = new DownloadHandle();
+		downloadHandle.Error += delegate(object obj, ErrorEventArgs args)
+		{
+			AppendText(notify: false, "--> 下载失败：" + args.GetException().Message);
+			ShowMsg("下载订阅失败：" + args.GetException().Message);
+			onFinished?.Invoke();
+		};
+		downloadHandle.UpdateCompleted += delegate(object obj, DownloadHandle.ResultEventArgs args)
+		{
+			try
+			{
+				if (args.Success)
+				{
+					AppendText(notify: false, "--> 获取网页数据成功");
+					string text = Utils.Base64Decode(args.Msg);
+					int imported = 0;
+					if (!Utils.IsNullOrEmpty(text))
+					{
+						if (text.IndexOf("vmess://") != -1 || text.IndexOf("vless://") != -1 || text.IndexOf("ss://") != -1 || text.IndexOf("ssr://") != -1 || text.IndexOf("trojan://") != -1 || text.IndexOf("socks://") != -1 || text.IndexOf("http://") != -1 || text.IndexOf("https://") != -1 || text.IndexOf("hysteria2://") != -1 || text.IndexOf("hy2://") != -1 || text.IndexOf("anytls://") != -1)
+						{
+							imported = MainFormHandler.Instance.AddBatchServers(config, text, subId);
+						}
+						else
+						{
+							AppendText(notify: false, "--> 尝试作为非Base64格式导入...");
+							imported = MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId);
+						}
+					}
+					else
+					{
+						AppendText(notify: false, "--> Base64解码失败，尝试作为非Base64格式导入...");
+						imported = MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId);
+					}
+
+					if (imported <= 0)
+					{
+						AppendText(notify: false, "--> 导入节点信息失败");
+						ShowMsg("导入节点信息失败");
+					}
+					else
+					{
+						AppendText(notify: false, "--> 节点信息更新完成");
+						InitSubscriptionTabs(restoreSelection: true);
+						RefreshServersView();
+						ConfigHandler.ToJsonFile(config);
+						ShowMsg($"订阅 \"{subRemarks}\" 导入/更新完成，共导入 {imported} 个节点");
+					}
+				}
+				else
+				{
+					AppendText(notify: false, "--> 导入失败！" + args.Msg);
+					ShowMsg("导入失败：" + args.Msg);
+				}
+			}
+			finally
+			{
+				onFinished?.Invoke();
+			}
+		};
+		downloadHandle.WebDownloadString(url);
+	}
+
 	private void MenuUpdateSub_Click(object sender, EventArgs e)
 	{
 		if (string.IsNullOrEmpty(rightClickedTabSubId))
@@ -5254,86 +3869,7 @@ public class MainForm : Form
 				}
 			}
 		}
-		if (subItem == null || string.IsNullOrWhiteSpace(subItem.url))
-		{
-			ShowMsg("订阅信息无效或URL为空");
-			return;
-		}
-		int nodeCountBefore = config.vmess?.Count ?? 0;
-		string subRemarks = subItem.remarks;
-		string url = subItem.url.Trim();
-		string subId = subItem.id.Trim();
-		AppendText(notify: false, "开始更新订阅：" + subRemarks);
-		AppendText(notify: false, "--> 正在下载订阅数据...");
-		DownloadHandle downloadHandle = new DownloadHandle();
-		downloadHandle.UpdateCompleted += delegate(object obj, DownloadHandle.ResultEventArgs args)
-		{
-			if (args.Success)
-			{
-				AppendText(notify: false, "--> 获取网页数据成功");
-				string text = Utils.Base64Decode(args.Msg);
-				if (!Utils.IsNullOrEmpty(text))
-				{
-					if (text.IndexOf("vmess://") != -1 || text.IndexOf("vless://") != -1 || text.IndexOf("ss://") != -1 || text.IndexOf("ssr://") != -1 || text.IndexOf("trojan://") != -1 || text.IndexOf("socks://") != -1 || text.IndexOf("http://") != -1 || text.IndexOf("https://") != -1 || text.IndexOf("hysteria2://") != -1 || text.IndexOf("hy2://") != -1 || text.IndexOf("anytls://") != -1)
-					{
-						if (MainFormHandler.Instance.AddBatchServers(config, text, subId) <= 0)
-						{
-							AppendText(notify: false, "--> 导入节点信息失败");
-							ShowMsg("导入节点信息失败");
-						}
-						else
-						{
-							AppendText(notify: false, "--> 节点信息更新完成");
-							int num = (config.vmess?.Count ?? 0) - nodeCountBefore;
-							InitSubscriptionTabs();
-							RefreshServersView();
-							ShowMsg($"订阅 \"{subRemarks}\" 更新完成，导入了 {num} 个节点");
-						}
-					}
-					else
-					{
-						AppendText(notify: false, "--> 尝试作为非Base64格式导入...");
-						if (MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId) <= 0)
-						{
-							AppendText(notify: false, "--> 导入节点信息失败");
-							ShowMsg("导入节点信息失败");
-						}
-						else
-						{
-							AppendText(notify: false, "--> 节点信息更新完成");
-							int num = (config.vmess?.Count ?? 0) - nodeCountBefore;
-							InitSubscriptionTabs();
-							RefreshServersView();
-							ShowMsg($"订阅 \"{subRemarks}\" 更新完成，导入了 {num} 个节点");
-						}
-					}
-				}
-				else
-				{
-					// Base64解码失败，尝试用原始内容作为非Base64格式（如纯YAML）导入
-					AppendText(notify: false, "--> Base64解码失败，尝试作为非Base64格式导入...");
-					if (MainFormHandler.Instance.AddBatchServers(config, args.Msg, subId) <= 0)
-					{
-						AppendText(notify: false, "--> 导入节点信息失败");
-						ShowMsg("导入节点信息失败");
-					}
-					else
-					{
-						AppendText(notify: false, "--> 节点信息更新完成");
-						int num = (config.vmess?.Count ?? 0) - nodeCountBefore;
-						InitSubscriptionTabs();
-						RefreshServersView();
-						ShowMsg($"订阅 \"{subRemarks}\" 更新完成，导入了 {num} 个节点");
-					}
-				}
-			}
-			else
-			{
-				AppendText(notify: false, "--> 导入失败！" + args.Msg);
-				ShowMsg("导入失败：" + args.Msg);
-			}
-		};
-		downloadHandle.WebDownloadString(url);
+		UpdateSingleSubscription(subItem);
 	}
 
 	private void MenuDeleteSubNodes_Click(object sender, EventArgs e)

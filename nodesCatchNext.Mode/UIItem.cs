@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 
@@ -10,6 +10,16 @@ public class UIItem
 	public Size mainSize { get; set; }
 
 	public Point mainLocation { get; set; }
+
+	public bool mainMaximized { get; set; }
+
+	public int splitterDistance { get; set; }
+
+	public string selectedSubId { get; set; }
+
+	public string sortColumnKey { get; set; }
+
+	public bool sortAscending { get; set; }
 
 	public Dictionary<string, int> mainLvColWidth { get; set; }
 

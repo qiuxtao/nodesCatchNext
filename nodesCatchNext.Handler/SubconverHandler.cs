@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -67,18 +67,11 @@ public class SubconverHandler
 				KillProcess(_process);
 				_process.Dispose();
 				_process = null;
-				return;
 			}
-			foreach (string item in lstSubconver)
+			Process[] processesByName = Process.GetProcessesByName("subconverter");
+			foreach (Process process in processesByName)
 			{
-				Process[] processesByName = Process.GetProcessesByName(item);
-				foreach (Process process in processesByName)
-				{
-					if (process.MainModule.FileName == Utils.GetPath(item) + ".exe")
-					{
-						KillProcess(process);
-					}
-				}
+				KillProcess(process);
 			}
 		}
 		catch (Exception ex)
@@ -114,12 +107,23 @@ public class SubconverHandler
 			{
 				return -1;
 			}
+			try
+			{
+				Process[] existingProcesses = Process.GetProcessesByName("subconverter");
+				foreach (Process existingProcess in existingProcesses)
+				{
+					KillProcess(existingProcess);
+				}
+			}
+			catch
+			{
+			}
 			Process process = new Process
 			{
 				StartInfo = new ProcessStartInfo
 				{
 					FileName = text,
-					WorkingDirectory = Utils.StartupPath(),
+					WorkingDirectory = Path.GetDirectoryName(text),
 					UseShellExecute = false,
 					RedirectStandardInput = true,
 					RedirectStandardOutput = true,

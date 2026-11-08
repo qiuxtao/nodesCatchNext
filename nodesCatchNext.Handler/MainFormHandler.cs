@@ -51,7 +51,7 @@ internal class MainFormHandler
 				using WebResponse webResponse = obj.GetResponse();
 				using StreamReader streamReader = new StreamReader(webResponse.GetResponseStream(), Encoding.UTF8);
 				string clipboardData2 = streamReader.ReadToEnd();
-				return Instance.AddBatchServers(config, clipboardData2);
+				return Instance.AddBatchServers(config, clipboardData2, subid);
 			}
 			catch (Exception ex)
 			{
@@ -96,8 +96,8 @@ internal class MainFormHandler
 			if (items == null || items.Count == 0)
 				return 0;
 
-			// 如果是订阅更新且模式为替换，先删除旧节点
-			if (!string.IsNullOrEmpty(subid) && config.subUpdateMode == 0)
+			// 如果是订阅更新，默认覆盖删除旧节点
+			if (!string.IsNullOrEmpty(subid))
 			{
 				config.vmess?.RemoveAll(v => v.subid == subid);
 			}

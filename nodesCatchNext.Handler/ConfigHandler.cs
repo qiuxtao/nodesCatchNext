@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -76,16 +76,26 @@ internal class ConfigHandler
 				{ "network", 70 },
 				{ "tls", 80 },
 				{ "subRemarks", 70 },
-				{ "httpsDelay", 80 },
-				{ "testResult", 200 },
-				{ "MaxSpeed", 80 }
+				{ "minDelay", 85 },
+				{ "avgDelay", 85 },
+				{ "testResult", 120 },
+				{ "MaxSpeed", 120 },
+				{ "lastTestTime", 130 }
 			};
 		}
 		else
 		{
-			if (!config.uiItem.mainLvColWidth.ContainsKey("httpsDelay"))
+			if (!config.uiItem.mainLvColWidth.ContainsKey("minDelay"))
 			{
-				config.uiItem.mainLvColWidth.Add("httpsDelay", 80);
+				config.uiItem.mainLvColWidth.Add("minDelay", 85);
+			}
+			if (!config.uiItem.mainLvColWidth.ContainsKey("avgDelay"))
+			{
+				config.uiItem.mainLvColWidth.Add("avgDelay", 85);
+			}
+			if (!config.uiItem.mainLvColWidth.ContainsKey("lastTestTime"))
+			{
+				config.uiItem.mainLvColWidth.Add("lastTestTime", 130);
 			}
 		}
 		// 初始化列可见性配置
@@ -102,10 +112,27 @@ internal class ConfigHandler
 				{ "network", true },
 				{ "tls", true },
 				{ "subRemarks", true },
-				{ "httpsDelay", true },
+				{ "minDelay", true },
+				{ "avgDelay", true },
 				{ "testResult", true },
-				{ "MaxSpeed", true }
+				{ "MaxSpeed", true },
+				{ "lastTestTime", true }
 			};
+		}
+		else
+		{
+			if (!config.uiItem.mainLvColVisible.ContainsKey("minDelay"))
+			{
+				config.uiItem.mainLvColVisible["minDelay"] = true;
+			}
+			if (!config.uiItem.mainLvColVisible.ContainsKey("avgDelay"))
+			{
+				config.uiItem.mainLvColVisible["avgDelay"] = true;
+			}
+			if (!config.uiItem.mainLvColVisible.ContainsKey("lastTestTime"))
+			{
+				config.uiItem.mainLvColVisible["lastTestTime"] = true;
+			}
 		}
 		if (Utils.IsNullOrEmpty(config.speedTestUrl))
 		{
@@ -115,44 +142,66 @@ internal class ConfigHandler
 		{
 			config.speedPingTestUrl = "https://www.cloudflare.com/cdn-cgi/trace";
 		}
+		if (Utils.IsNullOrEmpty(config.PingCount))
+		{
+			config.PingCount = "3";
+		}
 		if (Utils.IsNullOrEmpty(config.Timeout))
 		{
 			config.Timeout = "5";
 		}
-		if (Utils.IsNullOrEmpty(config.PingNum))
-		{
-			config.PingNum = "100";
-		}
-		if (Utils.IsNullOrEmpty(config.LowSpeed))
-		{
-			config.LowSpeed = "0.5";
-		}
-		if (Utils.IsNullOrEmpty(config.ClashPort))
-		{
-			config.ClashPort = "9090";
-		}
-		if (Utils.IsNullOrEmpty(config.FMave))
-		{
-			config.FMave = "10";
-		}
-		if (Utils.IsNullOrEmpty(config.FMmax))
-		{
-			config.FMmax = "0.3";
-		}
-		if (Utils.IsNullOrEmpty(config.FMSecond))
-		{
-			config.FMSecond = "5";
-		}
-		if (Utils.IsNullOrEmpty(config.Thread))
-		{
-			config.Thread = "100";
-		}
 		if (Utils.IsNullOrEmpty(config.DownloadThread))
 		{
-			config.DownloadThread = "5";
+			config.DownloadThread = "4";
+		}
+		if (Utils.IsNullOrEmpty(config.DownloadMaxTime))
+		{
+			config.DownloadMaxTime = "10";
+		}
+		if (config.vmess != null)
+		{
+			foreach (VmessItem item2 in config.vmess)
+			{
+				if (string.IsNullOrEmpty(item2.minDelay) && !string.IsNullOrEmpty(item2.httpsDelay))
+				{
+					item2.minDelay = item2.httpsDelay;
+				}
+				if (string.IsNullOrEmpty(item2.avgDelay) && !string.IsNullOrEmpty(item2.httpsDelay))
+				{
+					item2.avgDelay = item2.httpsDelay;
+				}
+				item2.testResult = NormalizeSpeedToMbps(item2.testResult);
+				item2.MaxSpeed = NormalizeSpeedToMbps(item2.MaxSpeed);
+			}
 		}
 		config.defAllowInsecure = true;
 		return 0;
+	}
+
+	private static string NormalizeSpeedToMbps(string speedText)
+	{
+		if (string.IsNullOrEmpty(speedText))
+		{
+			return speedText;
+		}
+		string trimmed = speedText.Trim();
+		if (trimmed.EndsWith("MB/s", StringComparison.OrdinalIgnoreCase))
+		{
+			string numPart = trimmed.Substring(0, trimmed.Length - 4).Trim();
+			if (double.TryParse(numPart, out var mbpsVal))
+			{
+				return $"{mbpsVal * 8.0:F2} Mbps";
+			}
+		}
+		else if (trimmed.EndsWith("KB/s", StringComparison.OrdinalIgnoreCase))
+		{
+			string numPart = trimmed.Substring(0, trimmed.Length - 4).Trim();
+			if (double.TryParse(numPart, out var kbpsVal))
+			{
+				return $"{kbpsVal * 8.0 / 1024.0:F2} Mbps";
+			}
+		}
+		return speedText;
 	}
 
 	public static void ShowMsg(bool b, string msg)
@@ -194,7 +243,6 @@ internal class ConfigHandler
 	{
 		Global.reloadV2ray = reload;
 		ToJsonFile(config);
-		ShowMsg(b: false, "配置文件保存成功！");
 		return 0;
 	}
 
@@ -202,26 +250,7 @@ internal class ConfigHandler
 	{
 		try
 		{
-			string text = Utils.LoadResource(Utils.GetPath(configRes));
-			if (Utils.IsNullOrEmpty(text))
-			{
-				return -1;
-			}
-			Config config = Utils.FromJson<Config>(text);
-			if (config == null)
-			{
-				return -1;
-			}
-			if (config.uiItem == null)
-			{
-				config.uiItem = new UIItem();
-			}
-			config.uiItem.mainSize = currentConfig.uiItem.mainSize;
-			config.uiItem.mainLocation = currentConfig.uiItem.mainLocation;
-			config.uiItem.mainLvColWidth = currentConfig.uiItem.mainLvColWidth;
-			config.uiItem.mainLvColVisible = currentConfig.uiItem.mainLvColVisible;
-			config.uiItem.mainLvColOrder = currentConfig.uiItem.mainLvColOrder;
-			ToJsonFile(config);
+			ToJsonFile(currentConfig);
 			return 0;
 		}
 		catch
@@ -242,7 +271,7 @@ internal class ConfigHandler
 		{
 			return -1;
 		}
-		if (!string.IsNullOrEmpty(subid) && config.subUpdateMode == 0)
+		if (!string.IsNullOrEmpty(subid))
 		{
 			config.vmess?.RemoveAll((VmessItem v) => v.subid == subid);
 		}
@@ -704,13 +733,13 @@ internal class ConfigHandler
 			if (asc)
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.MaxSpeed) descending, ParseMaxSpeed(item.MaxSpeed)
+					orderby HasTestResult(item.MaxSpeed) descending, HasTestResult(item.MaxSpeed) ? ParseMaxSpeed(item.MaxSpeed) : 0.0
 					select item).ToList();
 			}
 			else
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.MaxSpeed) descending, ParseMaxSpeed(item.MaxSpeed) descending
+					orderby HasTestResult(item.MaxSpeed) descending, HasTestResult(item.MaxSpeed) ? ParseMaxSpeed(item.MaxSpeed) : 0.0 descending
 					select item).ToList();
 			}
 			break;
@@ -737,17 +766,31 @@ internal class ConfigHandler
 			}
 			break;
 		}
-		case EServerColName.httpsDelay:
+		case EServerColName.minDelay:
 			if (asc)
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.httpsDelay) descending, ParseHttpsDelay(item.httpsDelay)
+					orderby HasTestResult(item.minDelay) descending, HasTestResult(item.minDelay) ? ParseHttpsDelay(item.minDelay) : 0.0
 					select item).ToList();
 			}
 			else
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.httpsDelay) descending, ParseHttpsDelay(item.httpsDelay) descending
+					orderby HasTestResult(item.minDelay) descending, HasTestResult(item.minDelay) ? ParseHttpsDelay(item.minDelay) : 0.0 descending
+					select item).ToList();
+			}
+			break;
+		case EServerColName.avgDelay:
+			if (asc)
+			{
+				config.vmess = (from item in config.vmess
+					orderby HasTestResult(item.avgDelay) descending, HasTestResult(item.avgDelay) ? ParseHttpsDelay(item.avgDelay) : 0.0
+					select item).ToList();
+			}
+			else
+			{
+				config.vmess = (from item in config.vmess
+					orderby HasTestResult(item.avgDelay) descending, HasTestResult(item.avgDelay) ? ParseHttpsDelay(item.avgDelay) : 0.0 descending
 					select item).ToList();
 			}
 			break;
@@ -755,13 +798,13 @@ internal class ConfigHandler
 			if (asc)
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.testResult) descending, ParseTestResult(item.testResult)
+					orderby HasTestResult(item.testResult) descending, HasTestResult(item.testResult) ? ParseTestResult(item.testResult) : 0.0
 					select item).ToList();
 			}
 			else
 			{
 				config.vmess = (from item in config.vmess
-					orderby HasTestResult(item.testResult) descending, ParseTestResult(item.testResult) descending
+					orderby HasTestResult(item.testResult) descending, HasTestResult(item.testResult) ? ParseTestResult(item.testResult) : 0.0 descending
 					select item).ToList();
 			}
 			break;
@@ -819,71 +862,45 @@ internal class ConfigHandler
 		{
 			return -1.0;
 		}
-		if (testResult.Contains("超时") || testResult.Contains("Timeout") || testResult.Contains("无法连接") || testResult.Contains("测速被取消") || testResult.Contains("等待测速线程..."))
+		if (testResult.Contains("超时") || testResult.Contains("Timeout") || testResult.Contains("无法连接") || testResult.Contains("测速被取消") || testResult.Contains("等待测速") || testResult.Contains("正在"))
 		{
 			return -1.0;
 		}
-		if (testResult.Contains("ms") && double.TryParse(testResult.Replace("ms", "").Trim(), out var result))
-		{
-			return result;
-		}
 		testResult = testResult.Trim();
-		double result4;
-		if (testResult.IndexOf("MB/s") != -1)
+		if (testResult.IndexOf("Mbps", StringComparison.OrdinalIgnoreCase) != -1)
 		{
-			if (double.TryParse(testResult.Substring(0, testResult.IndexOf("MB/s")).Trim(), out var result2))
+			int idx = testResult.IndexOf("Mbps", StringComparison.OrdinalIgnoreCase);
+			if (double.TryParse(testResult.Substring(0, idx).Trim(), out var mbps))
 			{
-				return result2;
+				return mbps;
 			}
 		}
-		else if (testResult.IndexOf("KB/s") != -1)
+		if (testResult.IndexOf("MB/s", StringComparison.OrdinalIgnoreCase) != -1)
 		{
-			if (double.TryParse(testResult.Substring(0, testResult.IndexOf("KB/s")).Trim(), out var result3))
+			int idx = testResult.IndexOf("MB/s", StringComparison.OrdinalIgnoreCase);
+			if (double.TryParse(testResult.Substring(0, idx).Trim(), out var mbs))
 			{
-				return result3 / 1024.0;
+				return mbs * 8.0;
 			}
 		}
-		else if (testResult.IndexOf("B/s") != -1 && double.TryParse(testResult.Substring(0, testResult.IndexOf("B/s")).Trim(), out result4))
+		if (testResult.IndexOf("KB/s", StringComparison.OrdinalIgnoreCase) != -1)
 		{
-			return result4 / 1048576.0;
+			int idx = testResult.IndexOf("KB/s", StringComparison.OrdinalIgnoreCase);
+			if (double.TryParse(testResult.Substring(0, idx).Trim(), out var kbs))
+			{
+				return kbs * 8.0 / 1024.0;
+			}
+		}
+		if (double.TryParse(testResult, out var raw))
+		{
+			return raw;
 		}
 		return -1.0;
 	}
 
 	private static double ParseMaxSpeed(string maxSpeed)
 	{
-		if (string.IsNullOrEmpty(maxSpeed))
-		{
-			return -1.0;
-		}
-		maxSpeed = maxSpeed.Trim();
-		double result4;
-		if (maxSpeed.IndexOf("MB/s") != -1)
-		{
-			if (double.TryParse(maxSpeed.Substring(0, maxSpeed.IndexOf("MB/s")).Trim(), out var result))
-			{
-				return result;
-			}
-		}
-		else if (maxSpeed.IndexOf("KB/s") != -1)
-		{
-			if (double.TryParse(maxSpeed.Substring(0, maxSpeed.IndexOf("KB/s")).Trim(), out var result2))
-			{
-				return result2 / 1024.0;
-			}
-		}
-		else if (maxSpeed.IndexOf("B/s") != -1)
-		{
-			if (double.TryParse(maxSpeed.Substring(0, maxSpeed.IndexOf("B/s")).Trim(), out var result3))
-			{
-				return result3 / 1048576.0;
-			}
-		}
-		else if (double.TryParse(maxSpeed, out result4))
-		{
-			return result4;
-		}
-		return -1.0;
+		return ParseTestResult(maxSpeed);
 	}
 
 	private static bool HasTestResult(string value)
@@ -892,11 +909,11 @@ internal class ConfigHandler
 		{
 			return false;
 		}
-		if (value.Contains("超时") || value.Contains("Timeout") || value.Contains("无法连接") || value.Contains("测速被取消") || value.Contains("等待测速线程...") || value.Contains("正在测试..."))
+		if (value.Contains("超时") || value.Contains("Timeout") || value.Contains("无法连接") || value.Contains("失败") || value.Contains("取消") || value.Contains("等待") || value.Contains("正在") || value.Contains("测试中") || value.Contains("测速中"))
 		{
 			return false;
 		}
-		return true;
+		return value.Contains("ms") || value.IndexOf("Mbps", StringComparison.OrdinalIgnoreCase) >= 0 || value.IndexOf("MB/s", StringComparison.OrdinalIgnoreCase) >= 0 || value.IndexOf("KB/s", StringComparison.OrdinalIgnoreCase) >= 0;
 	}
 
 	public static string sendReq(string args, string uri, string method)

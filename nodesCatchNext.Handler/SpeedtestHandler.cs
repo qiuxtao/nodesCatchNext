@@ -1,8 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,42 +16,34 @@ namespace nodesCatchNext.Handler;
 
 public class SpeedtestHandler
 {
-	private Config _config;
+	private readonly Config _config;
 
-	private V2rayHandler _v2rayHandler;
+	private readonly V2rayHandler _v2rayHandler;
 
-	private List<int> _selecteds;
+	private readonly List<int> _selecteds;
 
-	private Action<int, string> _updateFunc;
+	private readonly Action<VmessItem, string, string, bool> _updateDelayFunc;
 
-	private Action<int, string> _updateMaxFunc;
+	private readonly Action<VmessItem, string, string, bool> _updateSpeedFunc;
 
-	private Action<int, string> _updateHttpsDelayFunc;
+	private readonly Action _onCompleted;
 
-	private Action<bool> _btStopTestStat;
+	private readonly Dictionary<int, VmessItem> _nodeSnapshot;
 
-	private CancellationTokenSource _cts;
-
-	private int _pid;
-
-	private Dictionary<int, VmessItem> _nodeSnapshot;
-
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<bool> btStopTestStat, int pid)
-		: this(ref config, ref cts, ref v2rayHandler, selecteds, update, updateMax, null, btStopTestStat, pid)
-	{
-	}
-
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
+	public SpeedtestHandler(
+		Config config,
+		V2rayHandler v2rayHandler,
+		List<int> selecteds,
+		Action<VmessItem, string, string, bool> updateDelayFunc,
+		Action<VmessItem, string, string, bool> updateSpeedFunc,
+		Action onCompleted)
 	{
 		_config = config;
 		_v2rayHandler = v2rayHandler;
 		_selecteds = Utils.DeepCopy(selecteds);
-		_updateFunc = update;
-		_updateMaxFunc = updateMax;
-		_updateHttpsDelayFunc = updateHttpsDelay;
-		_btStopTestStat = btStopTestStat;
-		_cts = cts;
-		_pid = pid;
+		_updateDelayFunc = updateDelayFunc;
+		_updateSpeedFunc = updateSpeedFunc;
+		_onCompleted = onCompleted;
 		_nodeSnapshot = new Dictionary<int, VmessItem>();
 		foreach (int selected in _selecteds)
 		{
@@ -59,400 +54,384 @@ public class SpeedtestHandler
 		}
 	}
 
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, string actionType, Action<int, string> update, Action<int, string> updateMax, Action<bool> btStopTestStat, int pid)
-		: this(ref config, ref cts, ref v2rayHandler, selecteds, actionType, update, updateMax, null, btStopTestStat, pid)
-	{
-	}
-
-	public SpeedtestHandler(ref Config config, ref CancellationTokenSource cts, ref V2rayHandler v2rayHandler, List<int> selecteds, string actionType, Action<int, string> update, Action<int, string> updateMax, Action<int, string> updateHttpsDelay, Action<bool> btStopTestStat, int pid)
-	{
-		_config = config;
-		_v2rayHandler = v2rayHandler;
-		_selecteds = Utils.DeepCopy(selecteds);
-		_updateFunc = update;
-		_updateMaxFunc = updateMax;
-		_updateHttpsDelayFunc = updateHttpsDelay;
-		_btStopTestStat = btStopTestStat;
-		_cts = cts;
-		_pid = pid;
-		_nodeSnapshot = new Dictionary<int, VmessItem>();
-		foreach (int selected in _selecteds)
-		{
-			if (selected >= 0 && selected < _config.vmess.Count)
-			{
-				_nodeSnapshot[selected] = _config.vmess[selected];
-			}
-		}
-		CancellationToken token = _cts.Token;
-		switch (actionType)
-		{
-		case "realping":
-		case "httpsdelay":
-			if (_config.ThreadNum == 0)
-			{
-				Task.Run(delegate
-				{
-					RunRealPing(token);
-				}, token);
-			}
-			else
-			{
-				Task.Run(delegate
-				{
-					RunRealPing2(token);
-				}, token);
-			}
-			break;
-		case "speedtest":
-			if (_config.DownloadThreadNum == 0)
-			{
-				Task.Run(delegate
-				{
-					RunSpeedTest(token);
-				}, token);
-			}
-			else
-			{
-				Task.Run(delegate
-				{
-					RunSpeedTest2(token);
-				}, token);
-			}
-			break;
-		}
-	}
-
-	public void RunSpeedTest(CancellationToken ct)
-	{
-		int downloadTimeout = 10;
-		int externalControllerPort = _config.externalControllerPort;
-		string speedTestUrl = _config.speedTestUrl;
-		int localPort = _config.GetLocalPort("speedtest");
-		string uri = "http://127.0.0.1:" + externalControllerPort + "/proxies/GLOBAL";
-		WebProxy webProxy = new WebProxy("127.0.0.1", 40000);
-		foreach (int selected in _selecteds)
-		{
-			int originalIndex = selected;
-			int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
-			if (currentNodeIndex < 0)
-			{
-				continue;
-			}
-			DownloadHandle downloadHandle = new DownloadHandle();
-			downloadHandle.UpdateCompleted += delegate(object sender2, DownloadHandle.ResultEventArgs args)
-			{
-				int currentNodeIndex4 = GetCurrentNodeIndex(originalIndex);
-				if (currentNodeIndex4 >= 0 && currentNodeIndex4 < _config.vmess.Count)
-				{
-					string[] array = args.Msg.Split('|');
-					if (array.Length > 1)
-					{
-						_updateMaxFunc(currentNodeIndex4, array[1]);
-					}
-					_updateFunc(currentNodeIndex4, array[0]);
-				}
-			};
-			downloadHandle.Error += delegate(object sender2, ErrorEventArgs args)
-			{
-				int currentNodeIndex4 = GetCurrentNodeIndex(originalIndex);
-				if (currentNodeIndex4 >= 0 && currentNodeIndex4 < _config.vmess.Count)
-				{
-					_updateFunc(currentNodeIndex4, args.GetException().Message);
-				}
-			};
-			try
-			{
-				if (ct.IsCancellationRequested)
-				{
-					throw new OperationCanceledException();
-				}
-				try
-				{
-					ServicePointManager.FindServicePoint(new Uri(speedTestUrl)).CloseConnectionGroup("");
-				}
-				catch
-				{
-				}
-				string text = (localPort + currentNodeIndex).ToString();
-				if (ConfigHandler.sendReq("{\"name\":\"" + text + "\"}", uri, "PUT") == "204")
-				{
-					Thread.Sleep(500);
-					downloadHandle.DownloadFileAsync(speedTestUrl, webProxy, downloadTimeout, _config.fastMode, int.Parse(_config.FMSecond), (int)(double.Parse(_config.FMmax) * 1024.0), int.Parse(_config.FMave));
-					try
-					{
-						ServicePointManager.FindServicePoint(new Uri(speedTestUrl)).CloseConnectionGroup("");
-					}
-					catch
-					{
-					}
-				}
-				else
-				{
-					int currentNodeIndex2 = GetCurrentNodeIndex(originalIndex);
-					if (currentNodeIndex2 >= 0 && currentNodeIndex2 < _config.vmess.Count)
-					{
-						_updateFunc(currentNodeIndex2, "切换节点失败");
-					}
-				}
-			}
-			catch (Exception)
-			{
-				int currentNodeIndex3 = GetCurrentNodeIndex(originalIndex);
-				if (currentNodeIndex3 >= 0 && currentNodeIndex3 < _config.vmess.Count)
-				{
-					_updateFunc(currentNodeIndex3, "测速被取消");
-				}
-			}
-		}
-		_btStopTestStat(obj: false);
-		_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "测速执行完成！");
-	}
-
-	public void RunSpeedTest2(CancellationToken ct)
-	{
-		_ = string.Empty;
-		int timeout = 10;
-		_ = _config.externalControllerPort;
-		string speedTestUrl = _config.speedTestUrl;
-		int httpPort = _config.GetLocalPort("speedtest");
-		int num = int.Parse(_config.DownloadThread);
-		if (!ThreadPool.SetMinThreads(num, num))
-		{
-			_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
-		}
-		List<Action> list = new List<Action>();
-		foreach (int selected in _selecteds)
-		{
-			int originalIndex = selected;
-			list.Add(delegate
-			{
-				try
-				{
-					if (ct.IsCancellationRequested)
-					{
-						throw new OperationCanceledException();
-					}
-					int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
-					if (currentNodeIndex >= 0)
-					{
-						DownloadHandle downloadHandle = new DownloadHandle();
-						downloadHandle.UpdateCompleted += delegate(object sender2, DownloadHandle.ResultEventArgs args)
-						{
-							int currentNodeIndex3 = GetCurrentNodeIndex(originalIndex);
-							if (currentNodeIndex3 >= 0 && currentNodeIndex3 < _config.vmess.Count)
-							{
-								string[] array = args.Msg.Split('|');
-								if (array.Length > 1)
-								{
-									_updateMaxFunc(currentNodeIndex3, array[1]);
-								}
-								_updateFunc(currentNodeIndex3, array[0]);
-							}
-						};
-						downloadHandle.Error += delegate(object sender2, ErrorEventArgs args)
-						{
-							int currentNodeIndex3 = GetCurrentNodeIndex(originalIndex);
-							if (currentNodeIndex3 >= 0 && currentNodeIndex3 < _config.vmess.Count)
-							{
-								_updateFunc(currentNodeIndex3, args.GetException().Message);
-							}
-						};
-						downloadHandle.DownloadFileAsync(webProxy: new WebProxy("127.0.0.1", httpPort + currentNodeIndex), url: speedTestUrl, downloadTimeout: timeout, mode: _config.fastMode, second: int.Parse(_config.FMSecond), max: (int)(double.Parse(_config.FMmax) * 1024.0), ave: int.Parse(_config.FMave));
-					}
-				}
-				catch (Exception)
-				{
-					int currentNodeIndex2 = GetCurrentNodeIndex(originalIndex);
-					if (currentNodeIndex2 >= 0 && currentNodeIndex2 < _config.vmess.Count)
-					{
-						_updateFunc(currentNodeIndex2, "测速被取消");
-					}
-				}
-			});
-		}
-		Parallel.Invoke(new ParallelOptions
-		{
-			MaxDegreeOfParallelism = num
-		}, list.ToArray());
-		if (!ThreadPool.SetMinThreads(Environment.ProcessorCount, Environment.ProcessorCount))
-		{
-			_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
-		}
-		if (_pid > 0)
-		{
-			_v2rayHandler.V2rayStopPid(_pid);
-		}
-		_btStopTestStat(obj: false);
-		_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "测速执行完成！");
-	}
-
-	public void RunRealPing2(CancellationToken ct)
+	/// <summary>
+	/// 并发测试所有选中节点的延迟（无线程数限制，支持多次测试并计算最低延迟与平均延迟，每测完一个节点立即排序）
+	/// </summary>
+	public void RunDelayTest(CancellationToken ct)
 	{
 		try
 		{
-			_ = string.Empty;
 			int httpPort = _config.GetLocalPort("speedtest");
-			int num = (int)(Convert.ToDouble(_config.Timeout) * 1000.0);
-			int extendedTimeout = num * 2;
-			int num2 = int.Parse(_config.Thread);
-			if (!ThreadPool.SetMinThreads(num2, num2))
+			if (!double.TryParse(_config.Timeout, out var timeoutSec) || timeoutSec <= 0)
 			{
-				_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
+				timeoutSec = 5.0;
 			}
-			List<Action> list = new List<Action>();
+			int timeOutMs = (int)(timeoutSec * 1000.0);
+			if (!int.TryParse(_config.PingCount, out var pingCount) || pingCount <= 0)
+			{
+				pingCount = 3;
+			}
+			string delayUrl = string.IsNullOrWhiteSpace(_config.speedPingTestUrl)
+				? "https://www.cloudflare.com/cdn-cgi/trace"
+				: _config.speedPingTestUrl.Trim();
+
+			ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 2048);
+			ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
+			ThreadPool.SetMinThreads(Math.Max(workerThreads, 256), Math.Max(completionPortThreads, 256));
+
+			List<Task> tasks = new List<Task>(_selecteds.Count);
 			foreach (int selected in _selecteds)
 			{
 				int originalIndex = selected;
-				list.Add(delegate
+				tasks.Add(Task.Run(() =>
 				{
-					try
+					if (!_nodeSnapshot.TryGetValue(originalIndex, out var node) || node == null)
+					{
+						return;
+					}
+					if (ct.IsCancellationRequested)
+					{
+						_updateDelayFunc?.Invoke(node, "测速被取消", "测速被取消", true);
+						return;
+					}
+
+					_updateDelayFunc?.Invoke(node, "正在测试...", "正在测试...", false);
+
+					List<int> validDelays = new List<int>(pingCount);
+					string lastError = "超时";
+					int proxyPortName = httpPort + originalIndex;
+					string requestUrl = $"http://{_config.externalController}/proxies/{proxyPortName}/delay?timeout={timeOutMs}&url={Uri.EscapeDataString(delayUrl)}";
+
+					for (int i = 0; i < pingCount; i++)
 					{
 						if (ct.IsCancellationRequested)
 						{
-							throw new OperationCanceledException();
+							break;
 						}
-						int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex >= 0)
+						string rawResp = GetRealPingTime(requestUrl, timeOutMs * 2 + 1000);
+						if (TryParseDelayMs(rawResp, out var delayMs, out var errMsg))
 						{
-							if (_updateHttpsDelayFunc != null)
+							validDelays.Add(delayMs);
+							if (i < pingCount - 1)
 							{
-								_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
+								int minVal = validDelays.Min();
+								int avgVal = (int)Math.Round(validDelays.Average());
+								_updateDelayFunc?.Invoke(node, $"测试中 {minVal}ms", $"测试中 {avgVal}ms", false);
 							}
-							_ = httpPort;
-							bool flag2 = currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _config.vmess[currentNodeIndex].configType == 11;
-							WebProxy webProxy = new WebProxy("127.0.0.1", httpPort + currentNodeIndex);
-							int responseTime = -1;
-							GetRealPingTime2(_config.speedPingTestUrl, extendedTimeout + 1000, webProxy, out responseTime);
-							if (responseTime == -1 && flag2 && _config.ThreadNum == 0)
-							{
-								try
-								{
-									int num3 = httpPort + currentNodeIndex;
-									string url = $"http://{_config.externalController}/proxies/{num3}/delay?timeout={extendedTimeout}&url={_config.speedPingTestUrl}";
-									Match match = Regex.Match(GetRealPingTime(url, extendedTimeout + 1000), ".*delay.+:([0-9]{1,4})}");
-									if (match.Success)
-									{
-										responseTime = int.Parse(match.Groups[1].Value);
-									}
-								}
-								catch
-								{
-								}
-							}
-							if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count)
-							{
-								string arg = FormatOut2(responseTime, "ms");
-								if (_updateHttpsDelayFunc != null)
-								{
-									_updateHttpsDelayFunc(currentNodeIndex, arg);
-								}
-							}
+						}
+						else
+						{
+							lastError = errMsg;
 						}
 					}
-					catch
+
+					if (validDelays.Count > 0)
 					{
-						int currentNodeIndex2 = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex2 >= 0 && currentNodeIndex2 < _config.vmess.Count && _updateHttpsDelayFunc != null)
-						{
-							_updateHttpsDelayFunc(currentNodeIndex2, "测速被取消");
-						}
+						int minVal = validDelays.Min();
+						int avgVal = (int)Math.Round(validDelays.Average());
+						_updateDelayFunc?.Invoke(node, $"{minVal}ms", $"{avgVal}ms", true);
 					}
-				});
+					else if (ct.IsCancellationRequested)
+					{
+						_updateDelayFunc?.Invoke(node, "测速被取消", "测速被取消", true);
+					}
+					else
+					{
+						_updateDelayFunc?.Invoke(node, lastError, lastError, true);
+					}
+				}));
 			}
-			Parallel.Invoke(new ParallelOptions
-			{
-				MaxDegreeOfParallelism = num2
-			}, list.ToArray());
+
+			Task.WaitAll(tasks.ToArray());
 		}
-		catch (Exception)
+		catch
 		{
 		}
 		finally
 		{
-			if (!ThreadPool.SetMinThreads(Environment.ProcessorCount, Environment.ProcessorCount))
-			{
-				_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
-			}
-			if (_pid > 0)
-			{
-				_v2rayHandler.V2rayStopPid(_pid);
-			}
-			_btStopTestStat(obj: false);
-			_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "测速执行完成！");
+			_v2rayHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "延迟测试已停止" : "延迟测试完成！");
+			_onCompleted?.Invoke();
 		}
 	}
 
-	public void RunRealPing(CancellationToken ct)
+	/// <summary>
+	/// 并发测试所有选中节点的下载速度（按测试线程数同时并发测试多个节点、支持最大时间控制，每测完一个节点立即排序）
+	/// </summary>
+	public void RunDownloadTest(CancellationToken ct)
 	{
 		try
 		{
-			int httpPort = _config.GetLocalPort("speedtest");
-			int timeOut = (int)(Convert.ToDouble(_config.Timeout) * 1000.0);
-			int num = int.Parse(_config.Thread);
-			if (!ThreadPool.SetMinThreads(num, num))
+			if (!int.TryParse(_config.DownloadThread, out var threadCount) || threadCount <= 0)
 			{
-				_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "线程设置失败！将由系统默认分配线程");
+				threadCount = 4;
 			}
-			List<Task> list = new List<Task>();
+			if (threadCount > 128)
+			{
+				threadCount = 128;
+			}
+			if (!int.TryParse(_config.DownloadMaxTime, out var maxTimeSec) || maxTimeSec <= 0)
+			{
+				maxTimeSec = 10;
+			}
+			string speedTestUrl = string.IsNullOrWhiteSpace(_config.speedTestUrl)
+				? "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.2.15.tar.xz"
+				: _config.speedTestUrl.Trim();
+
+			int localPort = _config.GetLocalPort("speedtest");
+
+			Utils.SetSecurityProtocol();
+			ServicePointManager.ServerCertificateValidationCallback = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => true;
+			ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointManager.DefaultConnectionLimit, 2048);
+			ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
+			ThreadPool.SetMinThreads(Math.Max(workerThreads, threadCount * 4 + 32), Math.Max(completionPortThreads, threadCount * 4 + 32));
+
+			using SemaphoreSlim semaphore = new SemaphoreSlim(threadCount, threadCount);
+			List<Task> nodeTasks = new List<Task>(_selecteds.Count);
+
 			foreach (int selected in _selecteds)
 			{
 				int originalIndex = selected;
-				list.Add(Task.Run(delegate
+				nodeTasks.Add(Task.Run(() =>
 				{
+					if (!_nodeSnapshot.TryGetValue(originalIndex, out var node) || node == null)
+					{
+						return;
+					}
+					bool acquired = false;
+					try
+					{
+						semaphore.Wait(ct);
+						acquired = true;
+					}
+					catch (OperationCanceledException)
+					{
+						_updateSpeedFunc?.Invoke(node, "测速被取消", "", true);
+						return;
+					}
+
 					try
 					{
 						if (ct.IsCancellationRequested)
 						{
-							throw new OperationCanceledException();
+							_updateSpeedFunc?.Invoke(node, "测速被取消", "", true);
+							return;
 						}
-						int currentNodeIndex = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex >= 0)
-						{
-							if (_updateHttpsDelayFunc != null)
-							{
-								_updateHttpsDelayFunc(currentNodeIndex, "正在测速...");
-							}
-							int num2 = httpPort + currentNodeIndex;
-							string url = $"http://{_config.externalController}/proxies/{num2}/delay?timeout={timeOut}&url={_config.speedPingTestUrl}";
-							string realPingTime = GetRealPingTime(url, timeOut + 1);
-							string arg = FormatOut(realPingTime, "ms");
-							if (currentNodeIndex >= 0 && currentNodeIndex < _config.vmess.Count && _updateHttpsDelayFunc != null)
-							{
-								_updateHttpsDelayFunc(currentNodeIndex, arg);
-							}
-						}
+
+						int nodeProxyPort = localPort + originalIndex;
+						WebProxy nodeProxy = new WebProxy("127.0.0.1", nodeProxyPort);
+						_updateSpeedFunc?.Invoke(node, "正在下载...", "", false);
+						RunSingleNodeDownload(originalIndex, node, speedTestUrl, nodeProxy, 1, maxTimeSec, ct);
 					}
-					catch
+					finally
 					{
-						int currentNodeIndex2 = GetCurrentNodeIndex(originalIndex);
-						if (currentNodeIndex2 >= 0 && currentNodeIndex2 < _config.vmess.Count && _updateHttpsDelayFunc != null)
+						if (acquired)
 						{
-							_updateHttpsDelayFunc(currentNodeIndex2, "测速被取消");
+							semaphore.Release();
 						}
 					}
 				}));
 			}
-			Task.WaitAll(list.ToArray());
+
+			Task.WaitAll(nodeTasks.ToArray());
 		}
-		catch (Exception)
+		catch
 		{
 		}
 		finally
 		{
-			_btStopTestStat(obj: false);
-			_v2rayHandler.ShowMsg(updateToTrayTooltip: false, "测速执行完成！");
+			_v2rayHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "下载测试已停止" : "下载测试完成！");
+			_onCompleted?.Invoke();
 		}
 	}
 
-	public string GetRealPingTime(string url, int timeOut)
+	private void RunSingleNodeDownload(int originalIndex, VmessItem node, string url, WebProxy webProxy, int threadCount, int maxTimeSec, CancellationToken outerCt)
+	{
+		long totalBytes = 0L;
+		string lastError = "连接超时";
+		using CancellationTokenSource nodeCts = CancellationTokenSource.CreateLinkedTokenSource(outerCt);
+		nodeCts.CancelAfter(maxTimeSec * 1000);
+		CancellationToken token = nodeCts.Token;
+
+		Stopwatch swTotal = Stopwatch.StartNew();
+		List<HttpWebRequest> activeRequests = new List<HttpWebRequest>();
+		object reqLock = new object();
+
+		using CancellationTokenRegistration reg = token.Register(() =>
+		{
+			lock (reqLock)
+			{
+				foreach (HttpWebRequest req in activeRequests)
+				{
+					try
+					{
+						req.Abort();
+					}
+					catch
+					{
+					}
+				}
+			}
+		});
+
+		List<Task> workerTasks = new List<Task>(threadCount);
+		for (int t = 0; t < threadCount; t++)
+		{
+			int workerId = t;
+			workerTasks.Add(Task.Run(() =>
+			{
+				string connGroup = $"dl_{originalIndex}_{workerId}_{Guid.NewGuid():N}";
+				ServicePoint sp = null;
+				try
+				{
+					while (!token.IsCancellationRequested)
+					{
+						HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+						req.Proxy = webProxy;
+						req.Timeout = maxTimeSec * 1000;
+						req.ReadWriteTimeout = maxTimeSec * 1000;
+						req.KeepAlive = false;
+						req.AllowReadStreamBuffering = false;
+						req.ConnectionGroupName = connGroup;
+						req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+						sp = req.ServicePoint;
+						if (sp != null)
+						{
+							sp.ConnectionLimit = Math.Max(sp.ConnectionLimit, threadCount * 4);
+						}
+						lock (reqLock)
+						{
+							if (token.IsCancellationRequested)
+							{
+								return;
+							}
+							activeRequests.Add(req);
+						}
+
+						using HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
+						using Stream stream = resp.GetResponseStream();
+						if (stream == null)
+						{
+							break;
+						}
+						byte[] buffer = new byte[65536];
+						int bytesRead;
+						while (!token.IsCancellationRequested && (bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+						{
+							Interlocked.Add(ref totalBytes, bytesRead);
+						}
+					}
+				}
+				catch (WebException wex)
+				{
+					if (!token.IsCancellationRequested)
+					{
+						lastError = wex.Status == WebExceptionStatus.Timeout ? "连接超时" : "连接失败";
+					}
+				}
+				catch (Exception)
+				{
+					if (!token.IsCancellationRequested)
+					{
+						lastError = "下载失败";
+					}
+				}
+				finally
+				{
+					try
+					{
+						sp?.CloseConnectionGroup(connGroup);
+					}
+					catch
+					{
+					}
+				}
+			}));
+		}
+
+		double maxMbps = 0.0;
+		long lastSampleBytes = 0L;
+		double lastSampleSec = 0.0;
+
+		while (!token.IsCancellationRequested && ! workerTasks.All(t => t.IsCompleted))
+		{
+			Thread.Sleep(200);
+			long currentBytes = Interlocked.Read(ref totalBytes);
+			double elapsedSec = swTotal.Elapsed.TotalSeconds;
+			if (elapsedSec <= 0.05)
+			{
+				continue;
+			}
+
+			double windowSec = elapsedSec - lastSampleSec;
+			if (windowSec >= 0.5)
+			{
+				long deltaBytes = currentBytes - lastSampleBytes;
+				if (deltaBytes > 0)
+				{
+					double instantMbps = (double)deltaBytes * 8.0 / (windowSec * 1048576.0);
+					if (instantMbps > maxMbps)
+					{
+						maxMbps = instantMbps;
+					}
+				}
+				lastSampleBytes = currentBytes;
+				lastSampleSec = elapsedSec;
+			}
+
+			if (currentBytes > 0)
+			{
+				double avgMbps = (double)currentBytes * 8.0 / (elapsedSec * 1048576.0);
+				if (avgMbps > maxMbps)
+				{
+					maxMbps = avgMbps;
+				}
+				_updateSpeedFunc?.Invoke(node, $"测速中 {avgMbps:F2} Mbps", $"测速中 {maxMbps:F2} Mbps", false);
+			}
+		}
+
+		nodeCts.Cancel();
+		try
+		{
+			Task.WaitAll(workerTasks.ToArray(), 1000);
+		}
+		catch
+		{
+		}
+		swTotal.Stop();
+
+		long finalBytes = Interlocked.Read(ref totalBytes);
+		double totalSec = Math.Max(swTotal.Elapsed.TotalSeconds, 0.1);
+
+		if (finalBytes > 0)
+		{
+			double finalAvgMbps = (double)finalBytes * 8.0 / (totalSec * 1048576.0);
+			if (finalAvgMbps > maxMbps)
+			{
+				maxMbps = finalAvgMbps;
+			}
+			_updateSpeedFunc?.Invoke(node, $"{finalAvgMbps:F2} Mbps", $"{maxMbps:F2} Mbps", true);
+		}
+		else if (outerCt.IsCancellationRequested)
+		{
+			_updateSpeedFunc?.Invoke(node, "测速被取消", "", true);
+		}
+		else
+		{
+			_updateSpeedFunc?.Invoke(node, lastError, "", true);
+		}
+	}
+
+	private static string GetRealPingTime(string url, int timeOut)
 	{
 		try
 		{
 			HttpWebRequest obj = (HttpWebRequest)WebRequest.Create(url);
 			obj.Timeout = timeOut;
+			obj.ReadWriteTimeout = timeOut;
+			obj.KeepAlive = true;
 			using HttpWebResponse httpWebResponse = (HttpWebResponse)obj.GetResponse();
 			using Stream stream = httpWebResponse.GetResponseStream();
-			using StreamReader streamReader = new StreamReader(stream, Encoding.Default);
+			using StreamReader streamReader = new StreamReader(stream, Encoding.UTF8);
 			return streamReader.ReadToEnd();
 		}
 		catch (Exception ex)
@@ -461,85 +440,33 @@ public class SpeedtestHandler
 		}
 	}
 
-	public string FormatOut(string time, string unit)
+	private static bool TryParseDelayMs(string responseText, out int delayMs, out string errorMsg)
 	{
-		Match match = Regex.Match(time, ".*delay.+:([0-9]{1,4})}");
-		if (!match.Success)
-		{
-			if (time.IndexOf("504") != -1)
-			{
-				return "超时";
-			}
-			if (time.IndexOf("503") != -1)
-			{
-				return "无法连接";
-			}
-			return time;
-		}
-		return match.Groups[1].Value + unit;
-	}
-
-	private string GetRealPingTime2(string url, int timeout, WebProxy webProxy, out int responseTime)
-	{
-		string result = string.Empty;
-		responseTime = -1;
-		try
-		{
-			HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
-			httpWebRequest.Timeout = timeout;
-			httpWebRequest.Proxy = webProxy;
-			httpWebRequest.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-			httpWebRequest.KeepAlive = false;
-			httpWebRequest.AllowAutoRedirect = true;
-			httpWebRequest.MaximumAutomaticRedirections = 3;
-			httpWebRequest.ReadWriteTimeout = timeout;
-			if (httpWebRequest.ServicePoint != null)
-			{
-				httpWebRequest.ServicePoint.ConnectionLeaseTimeout = 0;
-				httpWebRequest.ServicePoint.MaxIdleTime = 0;
-			}
-			Stopwatch stopwatch = new Stopwatch();
-			stopwatch.Start();
-			HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-			if (httpWebResponse.StatusCode != HttpStatusCode.OK && httpWebResponse.StatusCode != HttpStatusCode.NoContent)
-			{
-				result = httpWebResponse.StatusDescription;
-			}
-			stopwatch.Stop();
-			responseTime = (int)stopwatch.Elapsed.TotalMilliseconds;
-			httpWebResponse.Close();
-		}
-		catch (WebException ex)
-		{
-			result = ((ex.Status == WebExceptionStatus.Timeout) ? "超时" : ((ex.Status == WebExceptionStatus.ConnectFailure) ? "连接失败" : ((ex.Status != WebExceptionStatus.ProtocolError) ? ex.Message : ((!(ex.Response is HttpWebResponse httpWebResponse2)) ? "协议错误" : ("HTTP " + (int)httpWebResponse2.StatusCode + ": " + httpWebResponse2.StatusDescription)))));
-		}
-		catch (Exception ex2)
-		{
-			result = ex2.Message;
-		}
-		return result;
-	}
-
-	private string FormatOut2(object time, string unit)
-	{
-		if (time.ToString().Equals("-1"))
-		{
-			return "超时";
-		}
-		return $"{time}{unit}".PadLeft(8, ' ');
-	}
-
-	private bool IsNodeStillValid(int index)
-	{
-		if (!_nodeSnapshot.ContainsKey(index))
+		delayMs = -1;
+		errorMsg = "超时";
+		if (string.IsNullOrEmpty(responseText))
 		{
 			return false;
 		}
-		if (index < 0 || index >= _config.vmess.Count)
+		Match match = Regex.Match(responseText, "\"delay\"\\s*:\\s*([0-9]+)");
+		if (match.Success && int.TryParse(match.Groups[1].Value, out delayMs) && delayMs > 0)
 		{
-			return false;
+			errorMsg = string.Empty;
+			return true;
 		}
-		return _config.vmess[index] == _nodeSnapshot[index];
+		if (responseText.IndexOf("504") != -1 || responseText.IndexOf("超时") != -1 || responseText.IndexOf("timed out", StringComparison.OrdinalIgnoreCase) != -1)
+		{
+			errorMsg = "超时";
+		}
+		else if (responseText.IndexOf("503") != -1 || responseText.IndexOf("502") != -1)
+		{
+			errorMsg = "无法连接";
+		}
+		else
+		{
+			errorMsg = "测试失败";
+		}
+		return false;
 	}
 
 	private int GetCurrentNodeIndex(int originalIndex)
