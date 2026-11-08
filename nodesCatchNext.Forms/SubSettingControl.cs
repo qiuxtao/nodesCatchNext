@@ -47,10 +47,22 @@ public class SubSettingControl : UserControl
 	{
 		if (subItem != null)
 		{
-			txtRemark.Text = subItem.remarks.ToString();
-			txtUrl.Text = subItem.url.ToString();
+			txtRemark.Text = subItem.remarks?.ToString() ?? string.Empty;
+			txtUrl.Text = subItem.url?.ToString() ?? string.Empty;
 			chkEnabled.Checked = subItem.enabled;
+			UpdateButtonStates();
 		}
+	}
+
+	private void UpdateButtonStates()
+	{
+		bool hasUrl = !string.IsNullOrWhiteSpace(txtUrl.Text);
+		btnUpdate.Enabled = hasUrl;
+	}
+
+	private void txtUrl_TextChanged(object sender, EventArgs e)
+	{
+		UpdateButtonStates();
 	}
 
 	private void EndBindingSub()
@@ -74,7 +86,7 @@ public class SubSettingControl : UserControl
 		EndBindingSub();
 		if (subItem == null || string.IsNullOrWhiteSpace(subItem.url) || subItem.url.Trim().Equals("url", StringComparison.OrdinalIgnoreCase))
 		{
-			MessageBox.Show("请先输入有效的订阅网址", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			MessageBox.Show("请先输入有效的订阅地址", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
 			return;
 		}
 		if (string.IsNullOrEmpty(subItem.id))
@@ -112,8 +124,8 @@ public class SubSettingControl : UserControl
 	{
 		if (subItem != null && MainForm.config?.subItem != null)
 		{
-			string text = (string.IsNullOrWhiteSpace(subItem.remarks) ? "该订阅" : ("订阅\"" + subItem.remarks + "\""));
-			if (MessageBox.Show("确定要删除 " + text + " 吗？", "删除订阅", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+			string text = (string.IsNullOrWhiteSpace(subItem.remarks) ? "该项" : ("\"" + subItem.remarks + "\""));
+			if (MessageBox.Show("确定要删除 " + text + " 吗？", "确认删除", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
 			{
 				MainForm.config.subItem.Remove(subItem);
 				MainForm.Instance?.InitSubscriptionTabs();
@@ -158,52 +170,58 @@ public class SubSettingControl : UserControl
 		this.grbMain.Size = new System.Drawing.Size(580, 98);
 		this.grbMain.TabIndex = 0;
 		this.grbMain.TabStop = false;
-		this.btnUpdate.Location = new System.Drawing.Point(396, 56);
-		this.btnUpdate.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-		this.btnUpdate.Name = "btnUpdate";
-		this.btnUpdate.Size = new System.Drawing.Size(75, 24);
-		this.btnUpdate.TabIndex = 27;
-		this.btnUpdate.Text = "导入/更新";
-		this.btnUpdate.UseVisualStyleBackColor = true;
-		this.btnUpdate.Click += new System.EventHandler(btnUpdate_Click);
-		this.btnDelete.Location = new System.Drawing.Point(477, 56);
-		this.btnDelete.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-		this.btnDelete.Name = "btnDelete";
-		this.btnDelete.Size = new System.Drawing.Size(75, 24);
-		this.btnDelete.TabIndex = 28;
-		this.btnDelete.Text = "删除订阅";
-		this.btnDelete.UseVisualStyleBackColor = true;
-		this.btnDelete.Click += new System.EventHandler(btnDelete_Click);
+		this.chkEnabled.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
 		this.chkEnabled.AutoSize = true;
 		this.chkEnabled.ImeMode = System.Windows.Forms.ImeMode.NoControl;
-		this.chkEnabled.Location = new System.Drawing.Point(400, 32);
+		this.chkEnabled.Location = new System.Drawing.Point(405, 30);
 		this.chkEnabled.Name = "chkEnabled";
 		this.chkEnabled.Size = new System.Drawing.Size(48, 16);
 		this.chkEnabled.TabIndex = 26;
 		this.chkEnabled.Text = "启用";
 		this.chkEnabled.UseVisualStyleBackColor = true;
 		this.chkEnabled.Leave += new System.EventHandler(txtRemark_Leave);
-		this.txtUrl.Location = new System.Drawing.Point(58, 58);
-		this.txtUrl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
-		this.txtUrl.Name = "txtUrl";
-		this.txtUrl.Size = new System.Drawing.Size(330, 21);
-		this.txtUrl.TabIndex = 3;
-		this.txtUrl.Leave += new System.EventHandler(txtRemark_Leave);
-		this.txtRemark.Location = new System.Drawing.Point(58, 30);
+		this.btnUpdate.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+		this.btnUpdate.Location = new System.Drawing.Point(400, 54);
+		this.btnUpdate.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+		this.btnUpdate.Name = "btnUpdate";
+		this.btnUpdate.Size = new System.Drawing.Size(80, 26);
+		this.btnUpdate.TabIndex = 27;
+		this.btnUpdate.Text = "导入/更新";
+		this.btnUpdate.UseVisualStyleBackColor = true;
+		this.btnUpdate.Click += new System.EventHandler(btnUpdate_Click);
+		this.btnDelete.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+		this.btnDelete.Location = new System.Drawing.Point(488, 54);
+		this.btnDelete.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+		this.btnDelete.Name = "btnDelete";
+		this.btnDelete.Size = new System.Drawing.Size(80, 26);
+		this.btnDelete.TabIndex = 28;
+		this.btnDelete.Text = "删除";
+		this.btnDelete.UseVisualStyleBackColor = true;
+		this.btnDelete.Click += new System.EventHandler(btnDelete_Click);
+		this.txtRemark.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+		this.txtRemark.Location = new System.Drawing.Point(75, 27);
 		this.txtRemark.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
 		this.txtRemark.Name = "txtRemark";
-		this.txtRemark.Size = new System.Drawing.Size(330, 21);
+		this.txtRemark.Size = new System.Drawing.Size(310, 21);
 		this.txtRemark.TabIndex = 2;
 		this.txtRemark.Leave += new System.EventHandler(txtRemark_Leave);
+		this.txtUrl.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+		this.txtUrl.Location = new System.Drawing.Point(75, 56);
+		this.txtUrl.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+		this.txtUrl.Name = "txtUrl";
+		this.txtUrl.Size = new System.Drawing.Size(310, 21);
+		this.txtUrl.TabIndex = 3;
+		this.txtUrl.Leave += new System.EventHandler(txtRemark_Leave);
+		this.txtUrl.TextChanged += new System.EventHandler(txtUrl_TextChanged);
 		this.label2.AutoSize = true;
-		this.label2.Location = new System.Drawing.Point(22, 62);
+		this.label2.Location = new System.Drawing.Point(8, 62);
 		this.label2.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
 		this.label2.Name = "label2";
-		this.label2.Size = new System.Drawing.Size(41, 12);
+		this.label2.Size = new System.Drawing.Size(65, 12);
 		this.label2.TabIndex = 1;
-		this.label2.Text = "网址：";
+		this.label2.Text = "订阅地址：";
 		this.label1.AutoSize = true;
-		this.label1.Location = new System.Drawing.Point(22, 32);
+		this.label1.Location = new System.Drawing.Point(32, 32);
 		this.label1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
 		this.label1.Name = "label1";
 		this.label1.Size = new System.Drawing.Size(41, 12);

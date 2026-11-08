@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -132,14 +133,22 @@ internal class UpdateHandle
 		_updateFunc(arg1: false, "开始更新节点信息...");
 		if (config.subItem == null || config.subItem.Count <= 0)
 		{
-			_updateFunc(arg1: false, "订阅列表为空，请添加后再尝试");
+			_updateFunc(arg1: false, "分组/订阅列表为空，请添加后再尝试");
 			return;
 		}
+
+		var activeRemoteSubs = config.subItem.Where(s => s.enabled && !string.IsNullOrWhiteSpace(s.url)).ToList();
+		if (activeRemoteSubs.Count == 0)
+		{
+			_updateFunc(arg1: false, "未检测到已启用的网络订阅链接（本地自定义分组无需网络更新）");
+			return;
+		}
+
 		_totalSubscriptions = config.subItem.Count;
 		for (int i = 1; i <= config.subItem.Count; i++)
 		{
-			string id = config.subItem[i - 1].id.Trim();
-			string text = config.subItem[i - 1].url.Trim();
+			string id = config.subItem[i - 1].id?.Trim() ?? string.Empty;
+			string text = (config.subItem[i - 1].url ?? string.Empty).Trim();
 			string remarks = config.subItem[i - 1].remarks ?? "未知订阅";
 			string hashCode = "-->";
 			if (!config.subItem[i - 1].enabled)
@@ -155,12 +164,22 @@ internal class UpdateHandle
 				CheckAndReportCompletion();
 				continue;
 			}
-			if (Utils.IsNullOrEmpty(id) || Utils.IsNullOrEmpty(text))
+			if (string.IsNullOrEmpty(text))
+			{
+				// 纯本地分组，无需从远程下载更新
+				lock (_lockObject)
+				{
+					_processedSubscriptions++;
+				}
+				CheckAndReportCompletion();
+				continue;
+			}
+			if (Utils.IsNullOrEmpty(id))
 			{
 				_updateFunc(arg1: false, hashCode + "[" + remarks + "] 订阅信息不完整，请检查");
 				lock (_lockObject)
 				{
-					_failedSubscriptions.Add((remarks, "订阅地址为空"));
+					_failedSubscriptions.Add((remarks, "订阅ID为空"));
 					_processedSubscriptions++;
 				}
 				CheckAndReportCompletion();

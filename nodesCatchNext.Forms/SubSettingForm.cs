@@ -19,8 +19,6 @@ public class SubSettingForm : Form
 
 	private Button btnCancel;
 
-	private Button btnSave;
-
 	private Button btnAdd;
 
 	private Button btnEnableAll;
@@ -47,6 +45,10 @@ public class SubSettingForm : Form
 
 	private void SubSettingForm_Load(object sender, EventArgs e)
 	{
+		if (MainForm.config == null)
+		{
+			MainForm.config = new Config();
+		}
 		if (MainForm.config.subItem == null)
 		{
 			MainForm.config.subItem = new List<SubItem>();
@@ -85,12 +87,6 @@ public class SubSettingForm : Form
 		RefreshSubsView();
 	}
 
-	private void btnSave_Click(object sender, EventArgs e)
-	{
-		ConfigHandler.SaveSubItem(ref MainForm.config);
-		ConfigHandler.ToJsonFile(MainForm.config);
-		base.DialogResult = DialogResult.Cancel;
-	}
 
 	private void SubSettingForm_FormClosing(object sender, FormClosingEventArgs e)
 	{
@@ -113,8 +109,8 @@ public class SubSettingForm : Form
 		SubItem item = new SubItem
 		{
 			id = Utils.GetGUID(),
-			remarks = "订阅",
-			url = "url"
+			remarks = "分组",
+			url = string.Empty
 		};
 		MainForm.config.subItem.Add(item);
 	}
@@ -161,7 +157,6 @@ public class SubSettingForm : Form
 	{
 		this.panel1 = new System.Windows.Forms.Panel();
 		this.btnCancel = new System.Windows.Forms.Button();
-		this.btnSave = new System.Windows.Forms.Button();
 		this.btnAdd = new System.Windows.Forms.Button();
 		this.btnEnableAll = new System.Windows.Forms.Button();
 		this.btnDisableAll = new System.Windows.Forms.Button();
@@ -169,7 +164,6 @@ public class SubSettingForm : Form
 		this.panel1.SuspendLayout();
 		base.SuspendLayout();
 		this.panel1.Controls.Add(this.btnCancel);
-		this.panel1.Controls.Add(this.btnSave);
 		this.panel1.Controls.Add(this.btnAdd);
 		this.panel1.Controls.Add(this.btnEnableAll);
 		this.panel1.Controls.Add(this.btnDisableAll);
@@ -189,34 +183,26 @@ public class SubSettingForm : Form
 		this.btnCancel.UseVisualStyleBackColor = true;
 		this.btnCancel.Visible = false;
 		this.btnCancel.Click += new System.EventHandler(btnCancel_Click);
-		this.btnSave.Location = new System.Drawing.Point(472, 18);
-		this.btnSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-		this.btnSave.Name = "btnSave";
-		this.btnSave.Size = new System.Drawing.Size(121, 30);
-		this.btnSave.TabIndex = 1;
-		this.btnSave.Text = "关闭";
-		this.btnSave.UseVisualStyleBackColor = true;
-		this.btnSave.Click += new System.EventHandler(btnSave_Click);
-		this.btnAdd.Location = new System.Drawing.Point(55, 18);
+		this.btnAdd.Location = new System.Drawing.Point(15, 13);
 		this.btnAdd.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
 		this.btnAdd.Name = "btnAdd";
-		this.btnAdd.Size = new System.Drawing.Size(104, 30);
+		this.btnAdd.Size = new System.Drawing.Size(145, 34);
 		this.btnAdd.TabIndex = 0;
-		this.btnAdd.Text = "添加";
+		this.btnAdd.Text = "新增分组/订阅";
 		this.btnAdd.UseVisualStyleBackColor = true;
 		this.btnAdd.Click += new System.EventHandler(btnAdd_Click);
-		this.btnEnableAll.Location = new System.Drawing.Point(175, 18);
+		this.btnEnableAll.Location = new System.Drawing.Point(170, 13);
 		this.btnEnableAll.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
 		this.btnEnableAll.Name = "btnEnableAll";
-		this.btnEnableAll.Size = new System.Drawing.Size(120, 30);
+		this.btnEnableAll.Size = new System.Drawing.Size(135, 34);
 		this.btnEnableAll.TabIndex = 3;
 		this.btnEnableAll.Text = "一键启用全部";
 		this.btnEnableAll.UseVisualStyleBackColor = true;
 		this.btnEnableAll.Click += new System.EventHandler(btnEnableAll_Click);
-		this.btnDisableAll.Location = new System.Drawing.Point(310, 18);
+		this.btnDisableAll.Location = new System.Drawing.Point(315, 13);
 		this.btnDisableAll.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
 		this.btnDisableAll.Name = "btnDisableAll";
-		this.btnDisableAll.Size = new System.Drawing.Size(140, 30);
+		this.btnDisableAll.Size = new System.Drawing.Size(135, 34);
 		this.btnDisableAll.TabIndex = 4;
 		this.btnDisableAll.Text = "一键禁用全部";
 		this.btnDisableAll.UseVisualStyleBackColor = true;
@@ -231,18 +217,17 @@ public class SubSettingForm : Form
 		base.AutoScaleDimensions = new System.Drawing.SizeF(8f, 15f);
 		base.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 		base.CancelButton = this.btnCancel;
-		base.ClientSize = new System.Drawing.Size(632, 524);
+		base.ClientSize = new System.Drawing.Size(720, 524);
 		base.Controls.Add(this.panCon);
 		base.Controls.Add(this.panel1);
-		base.FormBorderStyle = System.Windows.Forms.FormBorderStyle.SizableToolWindow;
+		base.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
 		base.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-		base.MaximizeBox = false;
-		this.MaximumSize = new System.Drawing.Size(650, 5599);
+		base.MaximizeBox = true;
 		base.MinimizeBox = false;
-		this.MinimumSize = new System.Drawing.Size(650, 559);
+		this.MinimumSize = new System.Drawing.Size(650, 420);
 		base.Name = "SubSettingForm";
 		base.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-		this.Text = "订阅列表";
+		this.Text = "分组/订阅列表管理";
 		base.FormClosing += new System.Windows.Forms.FormClosingEventHandler(SubSettingForm_FormClosing);
 		base.Load += new System.EventHandler(SubSettingForm_Load);
 		this.panel1.ResumeLayout(false);

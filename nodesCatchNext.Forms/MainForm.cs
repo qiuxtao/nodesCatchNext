@@ -108,13 +108,13 @@ public class MainForm : Form
 
 	private ToolStripMenuItem menuEditServer;
 
+	private ToolStripMenuItem menuMoveToGroup;
+
 	private ToolStripMenuItem menuRemoveDuplicateServer;
 
 	private ToolStripSeparator toolStripSeparator5;
 
 	private ToolStripMenuItem menuExport2ShareUrl;
-
-	private ToolStripMenuItem menuExport2SubContent;
 
 	private ToolStripSeparator toolStripSeparator6;
 
@@ -2154,25 +2154,6 @@ public class MainForm : Form
 		}
 	}
 
-	private void menuExport2SubContent_Click(object sender, EventArgs e)
-	{
-		GetLvSelectedIndex();
-		StringBuilder stringBuilder = new StringBuilder();
-		foreach (int lvSelected in lvSelecteds)
-		{
-			string shareUrl = ShareHandler.GetShareUrl(config, lvSelected);
-			if (!Utils.IsNullOrEmpty(shareUrl))
-			{
-				stringBuilder.Append(shareUrl);
-				stringBuilder.AppendLine();
-			}
-		}
-		if (stringBuilder.Length > 0)
-		{
-			Utils.SetClipboardData(Utils.Base64Encode(stringBuilder.ToString()));
-			AppendText(notify: false, "节点订阅内容已复制到剪贴板");
-		}
-	}
 
 	private void lvServers_KeyDown(object sender, KeyEventArgs e)
 	{
@@ -3139,11 +3120,11 @@ public class MainForm : Form
 		this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuSelectAll = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuEditServer = new System.Windows.Forms.ToolStripMenuItem();
+		this.menuMoveToGroup = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuRemoveServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuRemoveDuplicateServer = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuExport2ShareUrl = new System.Windows.Forms.ToolStripMenuItem();
-		this.menuExport2SubContent = new System.Windows.Forms.ToolStripMenuItem();
 		this.toolStripSeparator6 = new System.Windows.Forms.ToolStripSeparator();
 		this.menuExport2Base64 = new System.Windows.Forms.ToolStripMenuItem();
 		this.menuExport2Clash = new System.Windows.Forms.ToolStripMenuItem();
@@ -3233,8 +3214,8 @@ public class MainForm : Form
 		this.cmsLv.Items.AddRange(new System.Windows.Forms.ToolStripItem[15]
 		{
 			this.menuRealPingServer, this.menuDownLoadServer, this.toolStripSeparator3, this.menuAddServers, this.toolStripSeparator4, this.menuSelectAll, this.menuEditServer,
-			this.menuRemoveServer, this.menuRemoveDuplicateServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.menuExport2SubContent, this.toolStripSeparator6, this.menuExport2Base64,
-			this.menuExport2Clash
+			this.menuMoveToGroup, this.menuRemoveServer, this.menuRemoveDuplicateServer, this.toolStripSeparator5, this.menuExport2ShareUrl, this.toolStripSeparator6,
+			this.menuExport2Base64, this.menuExport2Clash
 		});
 		this.cmsLv.Name = "cmsLv";
 		this.cmsLv.Size = new System.Drawing.Size(285, 340);
@@ -3262,6 +3243,10 @@ public class MainForm : Form
 		this.menuEditServer.Size = new System.Drawing.Size(284, 24);
 		this.menuEditServer.Text = "编辑节点(双击)";
 		this.menuEditServer.Click += new System.EventHandler(menuEditServer_Click);
+		this.menuMoveToGroup.Name = "menuMoveToGroup";
+		this.menuMoveToGroup.Size = new System.Drawing.Size(284, 24);
+		this.menuMoveToGroup.Text = "移动到分组";
+		this.menuMoveToGroup.DropDownOpening += new System.EventHandler(menuMoveToGroup_DropDownOpening);
 		this.menuRemoveServer.Name = "menuRemoveServer";
 		this.menuRemoveServer.Size = new System.Drawing.Size(284, 24);
 		this.menuRemoveServer.Text = "删除选中节点(多选)(Delete)";
@@ -3276,10 +3261,6 @@ public class MainForm : Form
 		this.menuExport2ShareUrl.Size = new System.Drawing.Size(284, 24);
 		this.menuExport2ShareUrl.Text = "导出分享URL到剪贴板(Ctrl+C)";
 		this.menuExport2ShareUrl.Click += new System.EventHandler(menuExport2ShareUrl_Click);
-		this.menuExport2SubContent.Name = "menuExport2SubContent";
-		this.menuExport2SubContent.Size = new System.Drawing.Size(284, 24);
-		this.menuExport2SubContent.Text = "导出订阅内容到剪贴板";
-		this.menuExport2SubContent.Click += new System.EventHandler(menuExport2SubContent_Click);
 		this.toolStripSeparator6.Name = "toolStripSeparator6";
 		this.toolStripSeparator6.Size = new System.Drawing.Size(281, 6);
 		this.menuExport2Base64.Name = "menuExport2Base64";
@@ -3495,24 +3476,24 @@ public class MainForm : Form
 		this.btnClearResult.UseVisualStyleBackColor = true;
 		this.btnClearResult.Click += new System.EventHandler(btnClearResult_Click);
 		this.button1.ContextMenuStrip = this.contextMenuStrip1;
-		this.button1.Location = new System.Drawing.Point(1450, 142);
+		this.button1.Location = new System.Drawing.Point(1400, 142);
 		this.button1.Margin = new System.Windows.Forms.Padding(4);
 		this.button1.Name = "button1";
-		this.button1.Size = new System.Drawing.Size(115, 38);
+		this.button1.Size = new System.Drawing.Size(165, 38);
 		this.button1.TabIndex = 27;
-		this.button1.Text = "订阅管理";
+		this.button1.Text = "分组/订阅列表管理";
 		this.button1.UseVisualStyleBackColor = true;
 		this.button1.Click += new System.EventHandler(button1_Click_1);
 		this.contextMenuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
 		this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[2] { this.订阅列表ToolStripMenuItem, this.导入到节点列表ToolStripMenuItem });
 		this.contextMenuStrip1.Name = "contextMenuStrip1";
-		this.contextMenuStrip1.Size = new System.Drawing.Size(184, 52);
+		this.contextMenuStrip1.Size = new System.Drawing.Size(220, 52);
 		this.订阅列表ToolStripMenuItem.Name = "订阅列表ToolStripMenuItem";
-		this.订阅列表ToolStripMenuItem.Size = new System.Drawing.Size(183, 24);
-		this.订阅列表ToolStripMenuItem.Text = "订阅列表";
+		this.订阅列表ToolStripMenuItem.Size = new System.Drawing.Size(219, 24);
+		this.订阅列表ToolStripMenuItem.Text = "分组/订阅列表管理";
 		this.订阅列表ToolStripMenuItem.Click += new System.EventHandler(订阅列表ToolStripMenuItem_Click);
 		this.导入到节点列表ToolStripMenuItem.Name = "导入到节点列表ToolStripMenuItem";
-		this.导入到节点列表ToolStripMenuItem.Size = new System.Drawing.Size(183, 24);
+		this.导入到节点列表ToolStripMenuItem.Size = new System.Drawing.Size(219, 24);
 		this.导入到节点列表ToolStripMenuItem.Text = "导入到节点列表";
 		this.导入到节点列表ToolStripMenuItem.Click += new System.EventHandler(导入到节点列表ToolStripMenuItem_Click);
 		this.button2.Location = new System.Drawing.Point(1580, 142);
@@ -3598,37 +3579,67 @@ public class MainForm : Form
 		cmsTabSubscriptions.Items.Clear();
 		if (rightClickedTabSubId == null)
 		{
+			ToolStripMenuItem menuNewGroup = new ToolStripMenuItem("+ 新建分组...");
+			menuNewGroup.Click += MenuCreateEmptyGroup_Click;
 			ToolStripMenuItem toolStripMenuItem = new ToolStripMenuItem("更新所有订阅");
 			toolStripMenuItem.Click += MenuUpdateSub_Click;
 			ToolStripMenuItem toolStripMenuItem2 = new ToolStripMenuItem("删除所有节点");
 			toolStripMenuItem2.Click += MenuDeleteAllNodes_Click;
 			ToolStripMenuItem toolStripMenuItem3 = new ToolStripMenuItem("删除所有无分组节点");
 			toolStripMenuItem3.Click += MenuDeleteUnassignedNodes_Click;
+			cmsTabSubscriptions.Items.Add(menuNewGroup);
+			cmsTabSubscriptions.Items.Add(new ToolStripSeparator());
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem);
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem2);
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem3);
 		}
 		else if (rightClickedTabSubId == "__unassigned__")
 		{
+			ToolStripMenuItem menuNewFromUnassigned = new ToolStripMenuItem("+ 为无分组节点新建分组...");
+			menuNewFromUnassigned.Click += MenuCreateGroupFromUnassigned_Click;
 			ToolStripMenuItem toolStripMenuItem4 = new ToolStripMenuItem("删除所有无分组节点");
 			toolStripMenuItem4.Click += MenuDeleteUnassignedNodes_Click;
+			cmsTabSubscriptions.Items.Add(menuNewFromUnassigned);
+			cmsTabSubscriptions.Items.Add(new ToolStripSeparator());
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem4);
 		}
 		else
 		{
-			ToolStripMenuItem toolStripMenuItem5 = new ToolStripMenuItem("更新此订阅");
-			toolStripMenuItem5.Click += MenuUpdateSub_Click;
-			ToolStripMenuItem toolStripMenuItem6 = new ToolStripMenuItem("删除此订阅的所有节点");
-			toolStripMenuItem6.Click += MenuDeleteSubNodes_Click;
-			ToolStripMenuItem toolStripMenuItem7 = new ToolStripMenuItem("复制订阅地址");
-			toolStripMenuItem7.Click += MenuCopySubUrl_Click;
-			cmsTabSubscriptions.Items.Add(toolStripMenuItem5);
-			cmsTabSubscriptions.Items.Add(toolStripMenuItem6);
-			cmsTabSubscriptions.Items.Add(toolStripMenuItem7);
+			SubItem targetSub = config.subItem?.FirstOrDefault(s => s.id == rightClickedTabSubId);
+			bool isRemote = targetSub != null && !string.IsNullOrWhiteSpace(targetSub.url);
+
+			if (isRemote)
+			{
+				ToolStripMenuItem toolStripMenuItem5 = new ToolStripMenuItem("更新此订阅");
+				toolStripMenuItem5.Click += MenuUpdateSub_Click;
+				ToolStripMenuItem toolStripMenuItem7 = new ToolStripMenuItem("复制订阅地址");
+				toolStripMenuItem7.Click += MenuCopySubUrl_Click;
+				cmsTabSubscriptions.Items.Add(toolStripMenuItem5);
+				cmsTabSubscriptions.Items.Add(toolStripMenuItem7);
+				cmsTabSubscriptions.Items.Add(new ToolStripSeparator());
+			}
+
+			ToolStripMenuItem menuRename = new ToolStripMenuItem("重命名分组");
+			menuRename.Click += MenuRenameGroup_Click;
+			cmsTabSubscriptions.Items.Add(menuRename);
+
+			ToolStripMenuItem menuClearNodes = new ToolStripMenuItem(isRemote ? "清空此订阅的所有节点" : "清空分组内所有节点");
+			menuClearNodes.Click += MenuDeleteSubNodes_Click;
+			cmsTabSubscriptions.Items.Add(menuClearNodes);
+
+			ToolStripMenuItem menuDissolve = new ToolStripMenuItem("解散分组 (保留节点)");
+			menuDissolve.Click += MenuDissolveGroup_Click;
+			cmsTabSubscriptions.Items.Add(menuDissolve);
+
+			ToolStripMenuItem menuDeleteGroupAndNodes = new ToolStripMenuItem("删除分组及节点");
+			menuDeleteGroupAndNodes.Click += MenuDeleteGroupAndNodes_Click;
+			cmsTabSubscriptions.Items.Add(menuDeleteGroupAndNodes);
+
 			cmsTabSubscriptions.Items.Add(new ToolStripSeparator());
-			ToolStripMenuItem toolStripMenuItem8 = new ToolStripMenuItem("上移订阅");
+
+			ToolStripMenuItem toolStripMenuItem8 = new ToolStripMenuItem(isRemote ? "上移订阅" : "上移分组");
 			toolStripMenuItem8.Click += MenuMoveSubUp_Click;
-			ToolStripMenuItem toolStripMenuItem9 = new ToolStripMenuItem("下移订阅");
+			ToolStripMenuItem toolStripMenuItem9 = new ToolStripMenuItem(isRemote ? "下移订阅" : "下移分组");
 			toolStripMenuItem9.Click += MenuMoveSubDown_Click;
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem8);
 			cmsTabSubscriptions.Items.Add(toolStripMenuItem9);
@@ -4031,4 +4042,383 @@ public class MainForm : Form
 		InitSubscriptionTabs(restoreSelection: true);
 		ShowMsg("订阅已下移");
 	}
+	public static string PromptInput(string prompt, string title, string defaultValue = "", Form owner = null)
+	{
+		using Form promptForm = new Form();
+		promptForm.Text = title;
+		promptForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+		promptForm.MaximizeBox = false;
+		promptForm.MinimizeBox = false;
+		promptForm.ShowInTaskbar = false;
+		promptForm.StartPosition = FormStartPosition.CenterParent;
+		promptForm.ClientSize = new Size(380, 135);
+
+		Label lbl = new Label
+		{
+			Left = 20,
+			Top = 15,
+			Width = 340,
+			Height = 25,
+			Text = prompt
+		};
+		TextBox txt = new TextBox
+		{
+			Left = 20,
+			Top = 45,
+			Width = 340,
+			Text = defaultValue ?? string.Empty
+		};
+		Button btnOk = new Button
+		{
+			Text = "确定",
+			Left = 180,
+			Top = 85,
+			Width = 85,
+			Height = 30,
+			DialogResult = DialogResult.OK
+		};
+		Button btnCancel = new Button
+		{
+			Text = "取消",
+			Left = 275,
+			Top = 85,
+			Width = 85,
+			Height = 30,
+			DialogResult = DialogResult.Cancel
+		};
+
+		promptForm.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel });
+		promptForm.AcceptButton = btnOk;
+		promptForm.CancelButton = btnCancel;
+
+		if (owner != null)
+		{
+			promptForm.Font = owner.Font;
+		}
+
+		txt.SelectAll();
+		return promptForm.ShowDialog(owner) == DialogResult.OK ? txt.Text.Trim() : null;
+	}
+
+	private List<int> GetSelectedServerIndices(bool showWarning = false)
+	{
+		List<int> indices = new List<int>();
+		if (lvServers.SelectedItems.Count <= 0)
+		{
+			if (showWarning)
+			{
+				UI.Show("请先选择需要操作的节点", this);
+			}
+			return indices;
+		}
+		foreach (ListViewItem item in lvServers.SelectedItems)
+		{
+			if (item.Tag is int idx && idx >= 0 && config.vmess != null && idx < config.vmess.Count)
+			{
+				indices.Add(idx);
+			}
+		}
+		if (indices.Count == 0 && showWarning)
+		{
+			UI.Show("请先选择需要操作的节点", this);
+		}
+		return indices;
+	}
+
+	private void menuMoveToGroup_DropDownOpening(object sender, EventArgs e)
+	{
+		menuMoveToGroup.DropDownItems.Clear();
+
+		ToolStripMenuItem itemNewGroup = new ToolStripMenuItem("+ 新建分组...");
+		itemNewGroup.Click += (s, args) => CreateAndMoveToNewGroup();
+		menuMoveToGroup.DropDownItems.Add(itemNewGroup);
+
+		menuMoveToGroup.DropDownItems.Add(new ToolStripSeparator());
+		ToolStripMenuItem itemUnassigned = new ToolStripMenuItem("移出分组 (设为无分组)");
+		itemUnassigned.Click += (s, args) => MoveSelectedNodesToGroup(string.Empty, "无分组");
+
+		var selectedIndices = GetSelectedServerIndices(showWarning: false);
+		if (selectedIndices.Count > 0 && selectedIndices.All(i => string.IsNullOrEmpty(config.vmess[i].subid)))
+		{
+			itemUnassigned.Checked = true;
+		}
+		menuMoveToGroup.DropDownItems.Add(itemUnassigned);
+
+		if (config.subItem != null && config.subItem.Count > 0)
+		{
+			menuMoveToGroup.DropDownItems.Add(new ToolStripSeparator());
+			foreach (SubItem sub in config.subItem)
+			{
+				string groupName = string.IsNullOrWhiteSpace(sub.remarks) ? "(未命名分组)" : sub.remarks;
+				string displayTitle = groupName;
+				if (!string.IsNullOrWhiteSpace(sub.url))
+				{
+					displayTitle += " [订阅]";
+				}
+				ToolStripMenuItem itemGroup = new ToolStripMenuItem(displayTitle);
+				string targetSubId = sub.id;
+				itemGroup.Click += (s, args) => MoveSelectedNodesToGroup(targetSubId, groupName);
+
+				if (selectedIndices.Count > 0 && selectedIndices.All(i => config.vmess[i].subid == targetSubId))
+				{
+					itemGroup.Checked = true;
+				}
+				menuMoveToGroup.DropDownItems.Add(itemGroup);
+			}
+		}
+	}
+
+	private void MoveSelectedNodesToGroup(string targetSubId, string groupName)
+	{
+		var indices = GetSelectedServerIndices(showWarning: true);
+		if (indices.Count == 0)
+		{
+			return;
+		}
+		string subIdToSet = targetSubId ?? string.Empty;
+		foreach (int idx in indices)
+		{
+			config.vmess[idx].subid = subIdToSet;
+		}
+		ConfigHandler.SaveConfig(ref config, reload: false);
+		UpdateUnassignedTabVisibility();
+		RefreshServersView();
+		ShowMsg($"已将 {indices.Count} 个节点移动到 \"{groupName}\"");
+	}
+
+	private void CreateAndMoveToNewGroup()
+	{
+		var indices = GetSelectedServerIndices(showWarning: true);
+		if (indices.Count == 0)
+		{
+			return;
+		}
+
+		string groupName = PromptInput("请输入新分组名称：", "新建分组", "", this);
+		if (string.IsNullOrWhiteSpace(groupName))
+		{
+			return;
+		}
+		groupName = groupName.Trim();
+
+		if (config.subItem == null)
+		{
+			config.subItem = new List<SubItem>();
+		}
+
+		SubItem targetSub = config.subItem.FirstOrDefault(s => s.remarks == groupName);
+		if (targetSub == null)
+		{
+			targetSub = new SubItem
+			{
+				id = Utils.GetGUID(),
+				remarks = groupName,
+				url = string.Empty,
+				enabled = true
+			};
+			config.subItem.Add(targetSub);
+			ConfigHandler.SaveSubItem(ref config);
+		}
+
+		foreach (int idx in indices)
+		{
+			config.vmess[idx].subid = targetSub.id;
+		}
+		ConfigHandler.SaveConfig(ref config, reload: false);
+		InitSubscriptionTabs(restoreSelection: true);
+
+		for (int i = 0; i < tabSubscriptions.TabPages.Count; i++)
+		{
+			if (tabSubscriptions.TabPages[i].Tag as string == targetSub.id)
+			{
+				tabSubscriptions.SelectedIndex = i;
+				break;
+			}
+		}
+		RefreshServersView();
+		ShowMsg($"已新建分组 \"{groupName}\" 并移入 {indices.Count} 个节点");
+	}
+
+	private void MenuCreateEmptyGroup_Click(object sender, EventArgs e)
+	{
+		string groupName = PromptInput("请输入新分组名称：", "新建分组", "", this);
+		if (string.IsNullOrWhiteSpace(groupName))
+		{
+			return;
+		}
+		groupName = groupName.Trim();
+		if (config.subItem == null)
+		{
+			config.subItem = new List<SubItem>();
+		}
+		if (config.subItem.Any(s => s.remarks == groupName))
+		{
+			UI.Show("已存在同名的分组，请使用其他名称", this);
+			return;
+		}
+		SubItem newSub = new SubItem
+		{
+			id = Utils.GetGUID(),
+			remarks = groupName,
+			url = string.Empty,
+			enabled = true
+		};
+		config.subItem.Add(newSub);
+		ConfigHandler.SaveSubItem(ref config);
+		ConfigHandler.ToJsonFile(config);
+		InitSubscriptionTabs(restoreSelection: true);
+
+		for (int i = 0; i < tabSubscriptions.TabPages.Count; i++)
+		{
+			if (tabSubscriptions.TabPages[i].Tag as string == newSub.id)
+			{
+				tabSubscriptions.SelectedIndex = i;
+				break;
+			}
+		}
+		RefreshServersView();
+		ShowMsg($"已创建新分组 \"{groupName}\"");
+	}
+
+	private void MenuCreateGroupFromUnassigned_Click(object sender, EventArgs e)
+	{
+		string groupName = PromptInput("请输入新分组名称：", "为无分组节点新建分组", "", this);
+		if (string.IsNullOrWhiteSpace(groupName))
+		{
+			return;
+		}
+		groupName = groupName.Trim();
+		if (config.subItem == null)
+		{
+			config.subItem = new List<SubItem>();
+		}
+		SubItem targetSub = config.subItem.FirstOrDefault(s => s.remarks == groupName);
+		if (targetSub == null)
+		{
+			targetSub = new SubItem
+			{
+				id = Utils.GetGUID(),
+				remarks = groupName,
+				url = string.Empty,
+				enabled = true
+			};
+			config.subItem.Add(targetSub);
+			ConfigHandler.SaveSubItem(ref config);
+		}
+		int count = 0;
+		if (config.vmess != null)
+		{
+			foreach (var v in config.vmess)
+			{
+				if (string.IsNullOrEmpty(v.subid))
+				{
+					v.subid = targetSub.id;
+					count++;
+				}
+			}
+		}
+		ConfigHandler.SaveConfig(ref config, reload: false);
+		InitSubscriptionTabs(restoreSelection: true);
+
+		for (int i = 0; i < tabSubscriptions.TabPages.Count; i++)
+		{
+			if (tabSubscriptions.TabPages[i].Tag as string == targetSub.id)
+			{
+				tabSubscriptions.SelectedIndex = i;
+				break;
+			}
+		}
+		RefreshServersView();
+		ShowMsg($"已将 {count} 个无分组节点归入 \"{groupName}\"");
+	}
+
+	private void MenuRenameGroup_Click(object sender, EventArgs e)
+	{
+		if (string.IsNullOrEmpty(rightClickedTabSubId) || config.subItem == null)
+		{
+			return;
+		}
+		SubItem subItem = config.subItem.FirstOrDefault(s => s.id == rightClickedTabSubId);
+		if (subItem == null)
+		{
+			return;
+		}
+		string newName = PromptInput("请输入新的分组名称：", "重命名分组", subItem.remarks, this);
+		if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == subItem.remarks)
+		{
+			return;
+		}
+		subItem.remarks = newName.Trim();
+		ConfigHandler.SaveSubItem(ref config);
+		ConfigHandler.ToJsonFile(config);
+		InitSubscriptionTabs(restoreSelection: true);
+		RefreshServersView();
+		ShowMsg($"分组已重命名为 \"{subItem.remarks}\"");
+	}
+
+	private void MenuDissolveGroup_Click(object sender, EventArgs e)
+	{
+		if (string.IsNullOrEmpty(rightClickedTabSubId) || config.subItem == null)
+		{
+			return;
+		}
+		SubItem subItem = config.subItem.FirstOrDefault(s => s.id == rightClickedTabSubId);
+		if (subItem == null)
+		{
+			return;
+		}
+		string remarks = subItem.remarks ?? "分组";
+		if (MessageBox.Show($"确定要解散分组 \"{remarks}\" 吗？\n\n分组内的节点将被保留并设为【无分组】。", "解散分组", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+		{
+			return;
+		}
+		int affected = 0;
+		if (config.vmess != null)
+		{
+			foreach (var v in config.vmess)
+			{
+				if (v.subid == rightClickedTabSubId)
+				{
+					v.subid = string.Empty;
+					affected++;
+				}
+			}
+		}
+		config.subItem.Remove(subItem);
+		ConfigHandler.SaveSubItem(ref config);
+		ConfigHandler.SaveConfig(ref config, reload: false);
+		InitSubscriptionTabs(restoreSelection: false);
+		RefreshServersView();
+		ShowMsg($"已解散分组 \"{remarks}\"，{affected} 个节点已变为无分组");
+	}
+
+	private void MenuDeleteGroupAndNodes_Click(object sender, EventArgs e)
+	{
+		if (string.IsNullOrEmpty(rightClickedTabSubId) || config.subItem == null)
+		{
+			return;
+		}
+		SubItem subItem = config.subItem.FirstOrDefault(s => s.id == rightClickedTabSubId);
+		if (subItem == null)
+		{
+			return;
+		}
+		string remarks = subItem.remarks ?? "分组";
+		if (MessageBox.Show($"确定要删除分组 \"{remarks}\" 及其包含的所有节点吗？\n\n此操作不可撤销！", "确认删除分组及节点", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+		{
+			return;
+		}
+		int removedNodes = 0;
+		if (config.vmess != null)
+		{
+			removedNodes = config.vmess.RemoveAll(v => v.subid == rightClickedTabSubId);
+		}
+		config.subItem.Remove(subItem);
+		ConfigHandler.SaveSubItem(ref config);
+		ConfigHandler.SaveConfig(ref config, reload: false);
+		InitSubscriptionTabs(restoreSelection: false);
+		RefreshServersView();
+		ShowMsg($"已删除分组 \"{remarks}\" 及包含的 {removedNodes} 个节点");
+	}
 }
+
