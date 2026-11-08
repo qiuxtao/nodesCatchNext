@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
   <PropertyGroup>
     <AssemblyName>nodesCatchNext</AssemblyName>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
@@ -14,12 +14,6 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <RootNamespace>nodesCatchNext</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
-    <None Remove="nodesCatchNext.Sample.SampleClientConfig.txt" />
-    <None Remove="nodesCatchNext.Sample.SampleHttprequest.txt" />
-    <EmbeddedResource Include="nodesCatchNext.Sample.SampleClientConfig.txt" LogicalName="nodesCatchNext.Sample.SampleClientConfig.txt" />
-    <EmbeddedResource Include="nodesCatchNext.Sample.SampleHttprequest.txt" LogicalName="nodesCatchNext.Sample.SampleHttprequest.txt" />
-  </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />

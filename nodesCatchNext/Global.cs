@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace nodesCatchNext;
 
@@ -11,8 +11,6 @@ internal class Global
 		// Shadowsocks 2022 (blake3) 加密方式
 		"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"
 	};
-
-	public static bool reloadV2ray { get; set; }
 
 	public static Job processJob { get; set; }
 }

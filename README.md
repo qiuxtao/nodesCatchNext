@@ -1,4 +1,4 @@
-<a name="top"></a>
+﻿<a name="top"></a>
 
 <div align="center">
 
@@ -163,7 +163,7 @@
 
 ### 📥 下载安装
 
-[![Download](https://img.shields.io/badge/下载最新版-v4.0.0-FF6B35?style=for-the-badge&logo=github)](https://github.com/AHackerX/nodesCatchNext/releases)
+[![Download](https://img.shields.io/badge/下载最新版-v4.0.0-FF6B35?style=for-the-badge&logo=github)](https://github.com/qiuxtao/nodesCatchNext/releases)
 
 </div>
 
@@ -551,8 +551,6 @@
 | 项目 | 说明 |
 |:---:|:---|
 | [💎 Mihomo](https://github.com/MetaCubeX/mihomo) | Clash 分支，功能强大的代理核心 |
-| [🚀 V2Ray](https://github.com/v2ray/v2ray-core) | 网络代理工具，支持多种协议 |
-| [📱 v2rayN](https://github.com/2dust/v2rayN) | Windows 平台的 V2Ray 客户端 |
 | [🔄 Subconverter](https://github.com/tindy2013/subconverter) | 订阅转换工具 |
 | [📚 Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) | .NET 高性能 JSON 框架 |
 
@@ -568,7 +566,7 @@
 
 <br>
 
-[![Star History Chart](https://api.star-history.com/svg?repos=AHackerX/nodesCatchNext&type=Date)](https://star-history.com/#AHackerX/nodesCatchNext&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=qiuxtao/nodesCatchNext&type=Date)](https://star-history.com/#qiuxtao/nodesCatchNext&Date)
 
 <br>
 
@@ -576,7 +574,7 @@
 
 ### 💖 感谢使用
 
-Made with ❤️ by [AHackerX](https://github.com/AHackerX)
+Made with ❤️ by [qiuxtao](https://github.com/qiuxtao)
 
 **[⬆️ 回到顶部](#top)**
 

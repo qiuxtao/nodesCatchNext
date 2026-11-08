@@ -68,7 +68,7 @@ public class MainForm : Form
 
 	public static Config config;
 
-	public V2rayHandler v2rayHandler;
+	public MihomoHandler mihomoHandler;
 
 	public SubconverHandler subconverHandler;
 
@@ -811,11 +811,11 @@ public class MainForm : Form
 		{
 		}
 		ConfigHandler.LoadConfig(ref config);
-		v2rayHandler = new V2rayHandler();
-		v2rayHandler.ProcessEvent += v2rayHandler_ProcessEvent;
-		v2rayHandler.ClashStart("-d ./config -ext-ctl 127.0.0.1:40001");
+		mihomoHandler = new MihomoHandler();
+		mihomoHandler.ProcessEvent += mihomoHandler_ProcessEvent;
+		mihomoHandler.ClashStart("-d ./config -ext-ctl 127.0.0.1:40001");
 		subconverHandler = new SubconverHandler();
-		subconverHandler.ProcessEvent += v2rayHandler_ProcessEvent;
+		subconverHandler.ProcessEvent += mihomoHandler_ProcessEvent;
 		subconverHandler.SubconverStartNew();
 		ConfigHandler.ProcessEvent += configHandler_ProcessEvent;
 		TestParameter();
@@ -824,8 +824,7 @@ public class MainForm : Form
 		RestoreSelectedSubscriptionTab();
 		RefreshServers();
 		RestoreUI();
-		Global.reloadV2ray = false;
-		v2rayHandler.LoadV2rayCore(config);
+				mihomoHandler.LoadMihomoCore(config);
 	}
 
 	public void ShowMsg(string msg)
@@ -846,7 +845,7 @@ public class MainForm : Form
 		txtMsgBox.Clear();
 	}
 
-	private void v2rayHandler_ProcessEvent(bool notify, string msg)
+	private void mihomoHandler_ProcessEvent(bool notify, string msg)
 	{
 		AppendText(notify, msg);
 	}
@@ -1073,7 +1072,7 @@ public class MainForm : Form
 	{
 		try
 		{
-			v2rayHandler.V2rayStop();
+			mihomoHandler.MihomoStop();
 		}
 		catch
 		{
@@ -1175,7 +1174,7 @@ public class MainForm : Form
 
 		AppendText(notify: false, $"开始延迟测试（共 {lvSelecteds.Count} 个节点，无线程限制全并发，每节点测试 {config.PingCount} 次）...");
 		CancellationToken token = cts.Token;
-		SpeedtestHandler handler = new SpeedtestHandler(config, v2rayHandler, new List<int>(lvSelecteds), UpdateDelayHandler, null, delegate
+		SpeedtestHandler handler = new SpeedtestHandler(config, mihomoHandler, new List<int>(lvSelecteds), UpdateDelayHandler, null, delegate
 		{
 			if (base.IsHandleCreated)
 			{
@@ -1238,7 +1237,7 @@ public class MainForm : Form
 
 		AppendText(notify: false, $"开始下载测速（共 {lvSelecteds.Count} 个节点，并发线程：{config.DownloadThread}，最大时间：{config.DownloadMaxTime} 秒）...");
 		CancellationToken token = cts.Token;
-		SpeedtestHandler handler = new SpeedtestHandler(config, v2rayHandler, new List<int>(lvSelecteds), null, UpdateSpeedHandler, delegate
+		SpeedtestHandler handler = new SpeedtestHandler(config, mihomoHandler, new List<int>(lvSelecteds), null, UpdateSpeedHandler, delegate
 		{
 			if (base.IsHandleCreated)
 			{

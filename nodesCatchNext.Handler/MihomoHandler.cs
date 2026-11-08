@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,9 +8,9 @@ using nodesCatchNext.Mode;
 
 namespace nodesCatchNext.Handler;
 
-public class V2rayHandler
+public class MihomoHandler
 {
-	private List<string> lstV2ray;
+	private List<string> lstMihomo;
 
 	private string coreUrl;
 
@@ -18,9 +18,9 @@ public class V2rayHandler
 
 	public event ProcessDelegate ProcessEvent;
 
-	public void LoadV2rayCore(Config config)
+	public void LoadMihomoCore(Config config)
 	{
-		lstV2ray = new List<string> { "mihomo-nodes" };
+		lstMihomo = new List<string> { "mihomo-nodes" };
 		coreUrl = "https://github.com/MetaCubeX/mihomo/releases";
 	}
 
@@ -29,18 +29,18 @@ public class V2rayHandler
 		this.ProcessEvent?.Invoke(updateToTrayTooltip, msg);
 	}
 
-	private void V2rayRestart()
+	public void MihomoRestart()
 	{
-		V2rayStop();
-		V2rayStart();
+		MihomoStop();
+		MihomoStart();
 	}
 
-	public void V2rayStart()
+	public void MihomoStart()
 	{
 		ShowMsg(updateToTrayTooltip: false, "启动服务内核...");
 		try
 		{
-			string text = V2rayFindexe();
+			string text = MihomoFindexe();
 			if (text == "")
 			{
 				return;
@@ -84,7 +84,7 @@ public class V2rayHandler
 		}
 	}
 
-	public void V2rayStopPid(int pid)
+	public void MihomoStopPid(int pid)
 	{
 		try
 		{
@@ -96,7 +96,7 @@ public class V2rayHandler
 		}
 	}
 
-	private string V2rayFindexe()
+	private string MihomoFindexe()
 	{
 		string text = string.Empty;
 		string fileName = "mihomo-nodes.exe";
@@ -114,7 +114,7 @@ public class V2rayHandler
 		return text;
 	}
 
-	public void V2rayStop()
+	public void MihomoStop()
 	{
 		try
 		{
@@ -125,7 +125,7 @@ public class V2rayHandler
 				_process = null;
 				return;
 			}
-			foreach (string item in lstV2ray)
+			foreach (string item in lstMihomo)
 			{
 				Process[] processesByName = Process.GetProcessesByName(item);
 				foreach (Process process in processesByName)
@@ -165,7 +165,7 @@ public class V2rayHandler
 		ShowMsg(updateToTrayTooltip: false, "启动Mihomo内核(" + DateTime.Now.ToString() + ")...");
 		try
 		{
-			string text = V2rayFindexe();
+			string text = MihomoFindexe();
 			if (text == "")
 			{
 				ShowMsg(updateToTrayTooltip: false, "错误：找不到 mihomo-nodes.exe，请将 Mihomo 内核文件放到程序目录下并重命名为 mihomo-nodes.exe");

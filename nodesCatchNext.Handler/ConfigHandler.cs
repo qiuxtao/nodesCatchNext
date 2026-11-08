@@ -241,7 +241,7 @@ internal class ConfigHandler
 
 	public static int SaveConfig(ref Config config, bool reload)
 	{
-		Global.reloadV2ray = reload;
+		
 		ToJsonFile(config);
 		return 0;
 	}
@@ -382,7 +382,7 @@ internal class ConfigHandler
 				config.vmess[index] = vmessItem;
 				if (config.index.Equals(index))
 				{
-					Global.reloadV2ray = true;
+					
 				}
 			}
 			else
@@ -391,7 +391,7 @@ internal class ConfigHandler
 				if (config.vmess.Count == 1)
 				{
 					config.index = 0;
-					Global.reloadV2ray = true;
+					
 				}
 			}
 			return 0;
@@ -414,7 +414,7 @@ internal class ConfigHandler
 				config.vmess[index] = vmessItem;
 				if (config.index.Equals(index))
 				{
-					Global.reloadV2ray = true;
+					
 				}
 			}
 			else
@@ -427,7 +427,7 @@ internal class ConfigHandler
 				if (config.vmess.Count == 1)
 				{
 					config.index = 0;
-					Global.reloadV2ray = true;
+					
 				}
 			}
 			return 0;
@@ -450,7 +450,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -459,7 +459,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -475,7 +475,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -484,7 +484,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -500,7 +500,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -509,7 +509,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -525,7 +525,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -534,7 +534,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -556,7 +556,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -565,7 +565,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -592,7 +592,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -601,7 +601,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -625,7 +625,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else
@@ -634,7 +634,7 @@ internal class ConfigHandler
 			if (config.vmess.Count == 1)
 			{
 				config.index = 0;
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		return 0;
@@ -657,7 +657,7 @@ internal class ConfigHandler
 			config.vmess[index] = vmessItem;
 			if (config.index.Equals(index))
 			{
-				Global.reloadV2ray = true;
+				
 			}
 		}
 		else

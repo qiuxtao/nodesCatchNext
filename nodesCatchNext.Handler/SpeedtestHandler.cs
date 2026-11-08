@@ -18,7 +18,7 @@ public class SpeedtestHandler
 {
 	private readonly Config _config;
 
-	private readonly V2rayHandler _v2rayHandler;
+	private readonly MihomoHandler _MihomoHandler;
 
 	private readonly List<int> _selecteds;
 
@@ -32,14 +32,14 @@ public class SpeedtestHandler
 
 	public SpeedtestHandler(
 		Config config,
-		V2rayHandler v2rayHandler,
+		MihomoHandler MihomoHandler,
 		List<int> selecteds,
 		Action<VmessItem, string, string, bool> updateDelayFunc,
 		Action<VmessItem, string, string, bool> updateSpeedFunc,
 		Action onCompleted)
 	{
 		_config = config;
-		_v2rayHandler = v2rayHandler;
+		_MihomoHandler = MihomoHandler;
 		_selecteds = Utils.DeepCopy(selecteds);
 		_updateDelayFunc = updateDelayFunc;
 		_updateSpeedFunc = updateSpeedFunc;
@@ -149,7 +149,7 @@ public class SpeedtestHandler
 		}
 		finally
 		{
-			_v2rayHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "延迟测试已停止" : "延迟测试完成！");
+			_MihomoHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "延迟测试已停止" : "延迟测试完成！");
 			_onCompleted?.Invoke();
 		}
 	}
@@ -239,7 +239,7 @@ public class SpeedtestHandler
 		}
 		finally
 		{
-			_v2rayHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "下载测试已停止" : "下载测试完成！");
+			_MihomoHandler?.ShowMsg(updateToTrayTooltip: false, ct.IsCancellationRequested ? "下载测试已停止" : "下载测试完成！");
 			_onCompleted?.Invoke();
 		}
 	}
