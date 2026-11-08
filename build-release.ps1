@@ -7,6 +7,23 @@ param (
 
 $ErrorActionPreference = "Stop"
 
+function Download-FileReliable {
+    param (
+        [string]$Url,
+        [string]$OutFile
+    )
+    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+        & curl.exe -L -s -S --retry 3 --retry-delay 2 -o "$OutFile" "$Url"
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $OutFile) -and (Get-Item $OutFile).Length -gt 0) {
+            return
+        }
+    }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $wc = New-Object System.Net.WebClient
+    $wc.Headers.Add("User-Agent", "PowerShell-nodesCatchNext")
+    $wc.DownloadFile($Url, $OutFile)
+}
+
 # 自适应寻找本地已有依赖目录
 if ([string]::IsNullOrWhiteSpace($DependencySource)) {
     if (Test-Path "C:\Applications\nodesCatchNext-windows-x64\mihomo-nodes.exe") {
@@ -85,8 +102,7 @@ if (-not $mihomoCopied) {
     } catch { }
 
     Write-Host "     下载地址: $downloadUrl"
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $mihomoZip -UseBasicParsing
+    Download-FileReliable -Url $downloadUrl -OutFile $mihomoZip
     $mihomoExtract = Join-Path $tempDownloads "mihomo_extract"
     Expand-Archive -Path $mihomoZip -DestinationPath $mihomoExtract -Force
     $exe = Get-ChildItem -Path $mihomoExtract -Filter "*.exe" -Recurse | Select-Object -First 1
@@ -113,7 +129,7 @@ if (-not [string]::IsNullOrWhiteSpace($DependencySource)) {
 if (-not $mmdbCopied) {
     Write-Host "  -> 正在从官方源下载 Country.mmdb..." -ForegroundColor Cyan
     $mmdbUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
-    Invoke-WebRequest -Uri $mmdbUrl -OutFile "$dstConfig\Country.mmdb" -UseBasicParsing
+    Download-FileReliable -Url $mmdbUrl -OutFile "$dstConfig\Country.mmdb"
     Write-Host "  -> 已下载 Country.mmdb" -ForegroundColor Green
 }
 Set-Content -Path "$dstConfig\config.yaml" -Value "mixed-port: 7890" -Encoding utf8
@@ -131,9 +147,20 @@ if (-not [string]::IsNullOrWhiteSpace($DependencySource)) {
 }
 if (-not $subconverterCopied) {
     Write-Host "  -> 正在从官方源下载 subconverter..." -ForegroundColor Cyan
-    $subUrl = "https://github.com/asdlokj1qpi233/subconverter/releases/download/v0.9.0/subconverter_win64.7z"
+    $subUrl = "https://github.com/asdlokj1qpi233/subconverter/releases/download/v0.9.9/subconverter_win64.7z"
+    try {
+        $headers = @{ 'User-Agent' = 'PowerShell-nodesCatchNext' }
+        if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
+        $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/asdlokj1qpi233/subconverter/releases/latest" -Headers $headers -TimeoutSec 10
+        $asset = $resp.assets | Where-Object { $_.name -eq 'subconverter_win64.7z' } | Select-Object -First 1
+        if ($asset -and $asset.browser_download_url) {
+            $subUrl = $asset.browser_download_url
+        }
+    } catch { }
+
+    Write-Host "     下载地址: $subUrl"
     $sub7z = Join-Path $tempDownloads "subconverter.7z"
-    Invoke-WebRequest -Uri $subUrl -OutFile $sub7z -UseBasicParsing
+    Download-FileReliable -Url $subUrl -OutFile $sub7z
     
     $sevenZip = "7z"
     if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
