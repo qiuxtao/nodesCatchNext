@@ -660,6 +660,16 @@ public class MainForm : Form
 
 	public void RefreshServersView()
 	{
+		int topItemIndex = -1;
+		try
+		{
+			if (lvServers.TopItem != null)
+			{
+				topItemIndex = lvServers.TopItem.Index;
+			}
+		}
+		catch { }
+
 		lvServers.BeginUpdate();
 		lvServers.Items.Clear();
 		int num = 0;
@@ -699,6 +709,14 @@ public class MainForm : Form
 			}
 		}
 		lvServers.EndUpdate();
+		if (topItemIndex > 0 && topItemIndex < lvServers.Items.Count)
+		{
+			try
+			{
+				lvServers.TopItem = lvServers.Items[topItemIndex];
+			}
+			catch { }
+		}
 		UpdateUnassignedTabVisibility();
 	}
 
@@ -1123,6 +1141,15 @@ public class MainForm : Form
 			return;
 		}
 
+		if (string.IsNullOrEmpty(currentSortColumnKey) || currentSortColumnKey == "def")
+		{
+			currentSortColumnKey = "minDelay";
+			currentSortAscending = true;
+			SetSortIconByKey("minDelay", true);
+		}
+		lastDynamicSortTick = 0;
+		isDynamicSortPending = false;
+
 		isTestingTcping = true;
 		btnTestTcping.Text = "停止测试";
 		btnTestDelay.Enabled = false;
@@ -1241,6 +1268,15 @@ public class MainForm : Form
 			return;
 		}
 
+		if (string.IsNullOrEmpty(currentSortColumnKey) || currentSortColumnKey == "def")
+		{
+			currentSortColumnKey = "minDelay";
+			currentSortAscending = true;
+			SetSortIconByKey("minDelay", true);
+		}
+		lastDynamicSortTick = 0;
+		isDynamicSortPending = false;
+
 		isTestingDelay = true;
 		btnTestDelay.Text = "停止测试";
 		btnTestTcping.Enabled = false;
@@ -1311,6 +1347,15 @@ public class MainForm : Form
 			return;
 		}
 
+		if (string.IsNullOrEmpty(currentSortColumnKey) || currentSortColumnKey == "def")
+		{
+			currentSortColumnKey = "testResult";
+			currentSortAscending = false;
+			SetSortIconByKey("testResult", false);
+		}
+		lastDynamicSortTick = 0;
+		isDynamicSortPending = false;
+
 		isTestingSpeed = true;
 		btnTestSpeed.Text = "停止测试";
 		btnTestTcping.Enabled = false;
@@ -1353,15 +1398,31 @@ public class MainForm : Form
 		}
 		config.vmess[k].minDelay = minTxt;
 		config.vmess[k].avgDelay = avgTxt;
-		foreach (ListViewItem item in lvServers.Items)
+		bool updated = false;
+		if (k < lvServers.Items.Count)
 		{
-			if (item.Tag != null && (int)item.Tag == k)
+			ListViewItem fastItem = lvServers.Items[k];
+			if (fastItem.Tag is int tagVal && tagVal == k)
 			{
-				if (item.SubItems.ContainsKey("minDelay"))
-					item.SubItems["minDelay"].Text = minTxt;
-				if (item.SubItems.ContainsKey("avgDelay"))
-					item.SubItems["avgDelay"].Text = avgTxt;
-				break;
+				if (fastItem.SubItems.ContainsKey("minDelay"))
+					fastItem.SubItems["minDelay"].Text = minTxt;
+				if (fastItem.SubItems.ContainsKey("avgDelay"))
+					fastItem.SubItems["avgDelay"].Text = avgTxt;
+				updated = true;
+			}
+		}
+		if (!updated)
+		{
+			foreach (ListViewItem item in lvServers.Items)
+			{
+				if (item.Tag != null && (int)item.Tag == k)
+				{
+					if (item.SubItems.ContainsKey("minDelay"))
+						item.SubItems["minDelay"].Text = minTxt;
+					if (item.SubItems.ContainsKey("avgDelay"))
+						item.SubItems["avgDelay"].Text = avgTxt;
+					break;
+				}
 			}
 		}
 		if (((minTxt != null && minTxt.Contains("ms")) || (avgTxt != null && avgTxt.Contains("ms"))) && (minTxt == null || !minTxt.Contains("测试中")))
@@ -1378,15 +1439,31 @@ public class MainForm : Form
 		}
 		config.vmess[k].testResult = avgTxt;
 		config.vmess[k].MaxSpeed = maxTxt;
-		foreach (ListViewItem item in lvServers.Items)
+		bool updated = false;
+		if (k < lvServers.Items.Count)
 		{
-			if (item.Tag != null && (int)item.Tag == k)
+			ListViewItem fastItem = lvServers.Items[k];
+			if (fastItem.Tag is int tagVal && tagVal == k)
 			{
-				if (item.SubItems.ContainsKey("testResult"))
-					item.SubItems["testResult"].Text = avgTxt;
-				if (item.SubItems.ContainsKey("MaxSpeed"))
-					item.SubItems["MaxSpeed"].Text = maxTxt;
-				break;
+				if (fastItem.SubItems.ContainsKey("testResult"))
+					fastItem.SubItems["testResult"].Text = avgTxt;
+				if (fastItem.SubItems.ContainsKey("MaxSpeed"))
+					fastItem.SubItems["MaxSpeed"].Text = maxTxt;
+				updated = true;
+			}
+		}
+		if (!updated)
+		{
+			foreach (ListViewItem item in lvServers.Items)
+			{
+				if (item.Tag != null && (int)item.Tag == k)
+				{
+					if (item.SubItems.ContainsKey("testResult"))
+						item.SubItems["testResult"].Text = avgTxt;
+					if (item.SubItems.ContainsKey("MaxSpeed"))
+						item.SubItems["MaxSpeed"].Text = maxTxt;
+					break;
+				}
 			}
 		}
 		if (avgTxt != null && avgTxt.Contains("Mbps") && !avgTxt.Contains("测速中"))
@@ -1699,7 +1776,7 @@ public class MainForm : Form
 					SetDelayResult(k, minDelay, avgDelay);
 					if (isNodeFinished)
 					{
-						SortListView();
+						TryThrottledSort();
 					}
 				}
 			});
@@ -1718,7 +1795,7 @@ public class MainForm : Form
 					SetSpeedResult(k, avgSpeed, maxSpeed);
 					if (isNodeFinished)
 					{
-						SortListView();
+						TryThrottledSort();
 					}
 				}
 			});
@@ -2277,6 +2354,9 @@ public class MainForm : Form
 
 	// 当前排序的列 key
 	private string currentSortColumnKey = null;
+	// 动态节流排序时间戳与待处理状态标记（0.8秒平滑排序）
+	private long lastDynamicSortTick = 0;
+	private bool isDynamicSortPending = false;
 
 	private void lvServers_ColumnClick(object sender, ColumnClickEventArgs e)
 	{
@@ -3075,6 +3155,47 @@ public class MainForm : Form
 		}
 		
 		return yamlContent;
+	}
+
+	/// <summary>
+	/// 测速过程中的 0.8 秒平滑节流动态自动排序
+	/// </summary>
+	private void TryThrottledSort()
+	{
+		if (string.IsNullOrEmpty(currentSortColumnKey))
+		{
+			return;
+		}
+
+		long nowTicks = DateTime.UtcNow.Ticks;
+		long elapsedMs = (nowTicks - lastDynamicSortTick) / 10000;
+		// 节流间隔：800 毫秒（0.8 秒）
+		if (elapsedMs >= 800)
+		{
+			lastDynamicSortTick = nowTicks;
+			isDynamicSortPending = false;
+			SortListView();
+		}
+		else if (!isDynamicSortPending)
+		{
+			isDynamicSortPending = true;
+			long delayMs = 800 - elapsedMs;
+			Task.Delay((int)Math.Max(50, delayMs)).ContinueWith(_ =>
+			{
+				if (base.IsHandleCreated)
+				{
+					BeginInvoke((Action)delegate
+					{
+						if (isDynamicSortPending)
+						{
+							isDynamicSortPending = false;
+							lastDynamicSortTick = DateTime.UtcNow.Ticks;
+							SortListView();
+						}
+					});
+				}
+			});
+		}
 	}
 
 	private void SortListView()
