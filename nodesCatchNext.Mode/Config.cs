@@ -43,7 +43,8 @@ public class Config
 
 	public int GetLocalPort(string protocol = "w")
 	{
-		return localPort + 10001;
+		// 节点独立测速端口基准，使用 30000 避开系统保留端口（50000-50059等）
+		return 30000;
 	}
 
 	public string address()

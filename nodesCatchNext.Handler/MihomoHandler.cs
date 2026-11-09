@@ -10,7 +10,7 @@ namespace nodesCatchNext.Handler;
 
 public class MihomoHandler
 {
-	private List<string> lstMihomo;
+	private List<string> lstMihomo = new List<string> { "mihomo-nodes" };
 
 	private string coreUrl;
 
@@ -162,6 +162,7 @@ public class MihomoHandler
 
 	public int ClashStart(string configStr)
 	{
+		MihomoStop();
 		ShowMsg(updateToTrayTooltip: false, "启动Mihomo内核(" + DateTime.Now.ToString() + ")...");
 		try
 		{
@@ -231,6 +232,7 @@ public class MihomoHandler
 				return -1;
 			}
 			
+			_process = process;
 			Global.processJob.AddProcess(process.Handle);
 			ShowMsg(updateToTrayTooltip: false, $"启动成功！进程ID：{process.Id}");
 			return process.Id;

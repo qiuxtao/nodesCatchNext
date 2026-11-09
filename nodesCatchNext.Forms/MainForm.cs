@@ -834,7 +834,7 @@ public class MainForm : Form
 		ConfigHandler.LoadConfig(ref config);
 		mihomoHandler = new MihomoHandler();
 		mihomoHandler.ProcessEvent += mihomoHandler_ProcessEvent;
-		mihomoHandler.ClashStart("-d ./config -ext-ctl 127.0.0.1:40001");
+		mihomoHandler.ClashStart($"-d ./config -ext-ctl {config.externalController}");
 		subconverHandler = new SubconverHandler();
 		subconverHandler.ProcessEvent += mihomoHandler_ProcessEvent;
 		subconverHandler.SubconverStartNew();
@@ -1502,7 +1502,31 @@ public class MainForm : Form
 		string path2 = Utils.GetPath("config\\temp.yaml");
 		try
 		{
-			if (!ConfigHandler.TcpClientCheck("127.0.0.1", externalControllerPort))
+			bool isMihomoReady = false;
+			for (int retry = 0; retry < 3; retry++)
+			{
+				if (ConfigHandler.TcpClientCheck("127.0.0.1", externalControllerPort))
+				{
+					isMihomoReady = true;
+					break;
+				}
+				System.Threading.Thread.Sleep(300);
+			}
+			if (!isMihomoReady)
+			{
+				ShowMsg("外部控制端口未就绪，正在尝试重新拉起Mihomo内核...");
+				mihomoHandler.ClashStart($"-d ./config -ext-ctl {config.externalController}");
+				for (int retry = 0; retry < 5; retry++)
+				{
+					System.Threading.Thread.Sleep(500);
+					if (ConfigHandler.TcpClientCheck("127.0.0.1", externalControllerPort))
+					{
+						isMihomoReady = true;
+						break;
+					}
+				}
+			}
+			if (!isMihomoReady)
 			{
 				throw new Exception("无法链接到Mihomo内核，请确认：\n1. mihomo-nodes.exe 文件是否存在于程序目录\n2. 端口 " + externalControllerPort + " 是否被占用\n3. 尝试重新打开测速软件");
 			}
@@ -1570,7 +1594,7 @@ public class MainForm : Form
 			}
 			else
 			{
-				text4 = "mixed-port: 40000\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: 127.0.0.1:" + externalControllerPort + "\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
+				text4 = $"mixed-port: {config.localPort}\r\nmode: Global\r\nlog-level: info\r\nexternal-controller: {config.externalController}\r\nproxies:\r\nproxy-groups:\r\n  - name: PROXY\r\n    type: select\r\n    proxies:\r\nrules:\r\n  - MATCH,PROXY\r\n";
 			}
 			// 生成 AnyTLS 节点的 YAML 配置
 			if (listAnyTLS.Count > 0)
@@ -1644,6 +1668,14 @@ public class MainForm : Form
 			{
 				throw new Exception("没有可用测速节点");
 			}
+			if (Regex.IsMatch(text4, @"(?m)^\s*external-controller\s*:"))
+			{
+				text4 = Regex.Replace(text4, @"(?m)^(\s*external-controller\s*:\s*).*$", $"external-controller: {config.externalController}");
+			}
+			else
+			{
+				text4 = $"external-controller: {config.externalController}\r\n" + text4;
+			}
 			text4 = EnsureUnifiedDelayInYaml(text4);
 			text4 = InjectPerNodeListenersInYaml(text4);
 			File.WriteAllText(path2, text4, Encoding.UTF8);
@@ -1673,14 +1705,14 @@ public class MainForm : Form
 				throw new Exception("切换测速配置文件失败！" + text2);
 			}
 			// 检查 Mihomo 内核是否仍存活
-			if (!ConfigHandler.TcpClientCheck("127.0.0.1", int.Parse(config.externalController.Split(':')[1])))
+			if (!ConfigHandler.TcpClientCheck("127.0.0.1", config.externalControllerPort))
 			{
 				throw new Exception("Mihomo内核加载配置后异常退出，可能存在不支持的节点格式");
 			}
 			ShowMsg("切换测速配置文件成功！");
 			text2 = ConfigHandler.sendReq(JsonConvert.SerializeObject(new
 			{
-				port = 40000
+				port = config.localPort
 			}, Formatting.None), text3, "PATCH");
 			if (text2 != "204")
 			{

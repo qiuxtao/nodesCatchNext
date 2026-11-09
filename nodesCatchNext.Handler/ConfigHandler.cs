@@ -44,17 +44,38 @@ internal class ConfigHandler
 				item.id = Utils.GetGUID();
 			}
 		}
-		if (config.localPort == 0)
+		bool portChanged = false;
+		// 校验并自适应分配 externalControllerPort（首选 29090，避开被占用的端口）
+		if (config.externalControllerPort <= 0 || !IsPortAvailable(config.externalControllerPort))
 		{
-			config.localPort = 40000;
+			int availableExtPort = FindAvailablePort(29090, 28000, 38000);
+			if (config.externalControllerPort != availableExtPort)
+			{
+				config.externalControllerPort = availableExtPort;
+				config.externalController = "127.0.0.1:" + availableExtPort;
+				portChanged = true;
+			}
 		}
-		if (config.externalControllerPort == 0)
+		else if (string.IsNullOrEmpty(config.externalController))
 		{
-			config.externalControllerPort = 40001;
+			config.externalController = "127.0.0.1:" + config.externalControllerPort;
+			portChanged = true;
 		}
-		if (config.externalController == null)
+
+		// 校验并自适应分配 localPort（首选 28000，避开 externalControllerPort）
+		if (config.localPort <= 0 || !IsPortAvailable(config.localPort) || config.localPort == config.externalControllerPort)
 		{
-			config.externalController = "127.0.0.1:40001";
+			int availableLocalPort = FindAvailablePort(28000, 28000, 38000, config.externalControllerPort);
+			if (config.localPort != availableLocalPort)
+			{
+				config.localPort = availableLocalPort;
+				portChanged = true;
+			}
+		}
+
+		if (portChanged)
+		{
+			ToJsonFile(config);
 		}
 		if (config.uiItem == null)
 		{
@@ -986,6 +1007,78 @@ internal class ConfigHandler
 		finally
 		{
 			tcpClient?.Close();
+		}
+	}
+
+	/// <summary>
+	/// 检查本地端口是否处于空闲且可被正常监听绑定状态（兼容Windows Hyper-V/NAT保留端口检测）
+	/// </summary>
+	public static bool IsPortAvailable(int port)
+	{
+		if (port <= 0 || port > 65535)
+		{
+			return false;
+		}
+		TcpListener listener = null;
+		try
+		{
+			listener = new TcpListener(IPAddress.Loopback, port);
+			listener.Start();
+			listener.Stop();
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+		finally
+		{
+			try { listener?.Stop(); } catch { }
+		}
+	}
+
+	/// <summary>
+	/// 查找一个真正可用的空闲端口，优先尝试 preferredPort，失败则在范围内自适应扫描
+	/// </summary>
+	public static int FindAvailablePort(int preferredPort, int startRange = 28000, int endRange = 38000, params int[] excludePorts)
+	{
+		if (preferredPort > 0 && preferredPort <= 65535 && (excludePorts == null || !excludePorts.Contains(preferredPort)))
+		{
+			if (IsPortAvailable(preferredPort))
+			{
+				return preferredPort;
+			}
+		}
+
+		for (int p = startRange; p <= endRange; p++)
+		{
+			if (excludePorts != null && excludePorts.Contains(p))
+			{
+				continue;
+			}
+			if (IsPortAvailable(p))
+			{
+				return p;
+			}
+		}
+
+		// 极端情况兜底：由操作系统自动分配一个可用端口
+		TcpListener fallbackListener = null;
+		try
+		{
+			fallbackListener = new TcpListener(IPAddress.Loopback, 0);
+			fallbackListener.Start();
+			int randomPort = ((IPEndPoint)fallbackListener.LocalEndpoint).Port;
+			fallbackListener.Stop();
+			return randomPort;
+		}
+		catch
+		{
+			return preferredPort > 0 ? preferredPort : 29090;
+		}
+		finally
+		{
+			try { fallbackListener?.Stop(); } catch { }
 		}
 	}
 }

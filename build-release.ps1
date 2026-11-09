@@ -155,7 +155,7 @@ if (-not $mmdbCopied) {
     Download-FileReliable -Url $mmdbUrl -OutFile "$dstConfig\Country.mmdb" -MinBytes (2 * 1024 * 1024)
     Write-Host "  -> 已下载 Country.mmdb" -ForegroundColor Green
 }
-Set-Content -Path "$dstConfig\config.yaml" -Value "mixed-port: 7890" -Encoding utf8
+Set-Content -Path "$dstConfig\config.yaml" -Value "mixed-port: 28000`r`nexternal-controller: 127.0.0.1:29090" -Encoding utf8
 Write-Host "  -> 已生成纯净 config 目录" -ForegroundColor Green
 
 # 复制或下载 subconverter 目录
