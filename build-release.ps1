@@ -10,18 +10,41 @@ $ErrorActionPreference = "Stop"
 function Download-FileReliable {
     param (
         [string]$Url,
-        [string]$OutFile
+        [string]$OutFile,
+        [long]$MinBytes = 1024
     )
-    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-        & curl.exe -L -s -S --retry 3 --retry-delay 2 -o "$OutFile" "$Url"
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $OutFile) -and (Get-Item $OutFile).Length -gt 0) {
-            return
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        if (Test-Path $OutFile) {
+            Remove-Item $OutFile -Force -ErrorAction SilentlyContinue
         }
+
+        # 尝试 1: curl.exe（带 -f 参数，HTTP 错误立即失败；带重试与 User-Agent）
+        if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+            & curl.exe -f -L -s -S --retry 3 --retry-delay 2 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "$OutFile" "$Url"
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $OutFile) -and (Get-Item $OutFile).Length -ge $MinBytes) {
+                $global:LASTEXITCODE = 0
+                return
+            }
+        }
+
+        # 尝试 2: WebClient
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            $wc.DownloadFile($Url, $OutFile)
+            if ((Test-Path $OutFile) -and (Get-Item $OutFile).Length -ge $MinBytes) {
+                $global:LASTEXITCODE = 0
+                return
+            }
+        } catch { }
+
+        Start-Sleep -Seconds 2
     }
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $wc = New-Object System.Net.WebClient
-    $wc.Headers.Add("User-Agent", "PowerShell-nodesCatchNext")
-    $wc.DownloadFile($Url, $OutFile)
+
+    if (-not (Test-Path $OutFile) -or (Get-Item $OutFile).Length -lt $MinBytes) {
+        throw "下载失败或文件损坏（大小未达标）: $Url"
+    }
 }
 
 # 自适应寻找本地已有依赖目录
@@ -92,7 +115,7 @@ if (-not $mihomoCopied) {
     $mihomoZip = Join-Path $tempDownloads "mihomo.zip"
     $downloadUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.12/mihomo-windows-amd64-v1.19.12.zip"
     try {
-        $headers = @{ 'User-Agent' = 'PowerShell-nodesCatchNext' }
+        $headers = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
         if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
         $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" -Headers $headers -TimeoutSec 10
         $asset = $resp.assets | Where-Object { $_.name -match '^mihomo-windows-amd64-.*\.zip$' -and $_.name -notmatch 'compatible' } | Select-Object -First 1
@@ -102,7 +125,7 @@ if (-not $mihomoCopied) {
     } catch { }
 
     Write-Host "     下载地址: $downloadUrl"
-    Download-FileReliable -Url $downloadUrl -OutFile $mihomoZip
+    Download-FileReliable -Url $downloadUrl -OutFile $mihomoZip -MinBytes (5 * 1024 * 1024)
     $mihomoExtract = Join-Path $tempDownloads "mihomo_extract"
     Expand-Archive -Path $mihomoZip -DestinationPath $mihomoExtract -Force
     $exe = Get-ChildItem -Path $mihomoExtract -Filter "*.exe" -Recurse | Select-Object -First 1
@@ -110,7 +133,7 @@ if (-not $mihomoCopied) {
         Copy-Item $exe.FullName -Destination "$pkgDir\mihomo-nodes.exe" -Force
         Write-Host "  -> 已下载并配置 mihomo-nodes.exe" -ForegroundColor Green
     } else {
-        Write-Warning "未能解压出 mihomo 二进制文件！"
+        throw "未能解压出 mihomo 二进制文件！"
     }
 }
 
@@ -129,7 +152,7 @@ if (-not [string]::IsNullOrWhiteSpace($DependencySource)) {
 if (-not $mmdbCopied) {
     Write-Host "  -> 正在从官方源下载 Country.mmdb..." -ForegroundColor Cyan
     $mmdbUrl = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
-    Download-FileReliable -Url $mmdbUrl -OutFile "$dstConfig\Country.mmdb"
+    Download-FileReliable -Url $mmdbUrl -OutFile "$dstConfig\Country.mmdb" -MinBytes (2 * 1024 * 1024)
     Write-Host "  -> 已下载 Country.mmdb" -ForegroundColor Green
 }
 Set-Content -Path "$dstConfig\config.yaml" -Value "mixed-port: 7890" -Encoding utf8
@@ -149,7 +172,7 @@ if (-not $subconverterCopied) {
     Write-Host "  -> 正在从官方源下载 subconverter..." -ForegroundColor Cyan
     $subUrl = "https://github.com/asdlokj1qpi233/subconverter/releases/download/v0.9.9/subconverter_win64.7z"
     try {
-        $headers = @{ 'User-Agent' = 'PowerShell-nodesCatchNext' }
+        $headers = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
         if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
         $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/asdlokj1qpi233/subconverter/releases/latest" -Headers $headers -TimeoutSec 10
         $asset = $resp.assets | Where-Object { $_.name -eq 'subconverter_win64.7z' } | Select-Object -First 1
@@ -160,7 +183,7 @@ if (-not $subconverterCopied) {
 
     Write-Host "     下载地址: $subUrl"
     $sub7z = Join-Path $tempDownloads "subconverter.7z"
-    Download-FileReliable -Url $subUrl -OutFile $sub7z
+    Download-FileReliable -Url $subUrl -OutFile $sub7z -MinBytes (1024 * 1024)
     
     $sevenZip = "7z"
     if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
@@ -179,8 +202,9 @@ if (-not $subconverterCopied) {
         New-Item -ItemType Directory -Path $dstSubconverter -Force | Out-Null
         Copy-Item "$subExtract\*" -Destination $dstSubconverter -Recurse -Force
     } else {
-        Write-Warning "未能正确识别解压后的 subconverter 目录结构！"
+        throw "未能正确识别解压后的 subconverter 目录结构！"
     }
+    $global:LASTEXITCODE = 0
     Write-Host "  -> 已下载并解压 subconverter 目录" -ForegroundColor Green
 }
 
